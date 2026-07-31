@@ -1,8 +1,6 @@
 {
-  "name": "Remix crma-facture",
-  "description": "Imported from GitHub: A7medAmine/crma-facture",
+  "name": "Facturation CRMA",
+  "description": "Gestion des factures d'assurance CRMA pour LAITERIE FROMAGERIE LFB",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": []
 }
