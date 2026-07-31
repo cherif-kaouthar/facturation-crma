@@ -96,7 +96,7 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
               {t.billedTo}
             </p>
             <p className="mt-1 text-sm font-bold text-ink">
-              {invoice.clientName || client.name || 'LAITERIE FROMAGERIE LFB'}
+              {invoice.clientName || client.name}
             </p>
             {invoice.clientLocation && (
               <p className="text-xs text-slate">{invoice.clientLocation}</p>

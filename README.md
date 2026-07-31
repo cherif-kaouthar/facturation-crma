@@ -1,4 +1,4 @@
-# Facturation CRMA
+# Facturation
 
 Application de gestion de factures d'assurance pour LAITERIE FROMAGERIE LFB.
 
@@ -35,7 +35,7 @@ logo.png            Icône de l'application
 ## Base de données
 
 - **Développement** : `data/lfb.db` (dans le dépôt)
-- **Application installée** : `%APPDATA%/Facturation CRMA/data/lfb.db` (chemin utilisateur standard, défini via `LFB_DATA_DIR`)
+- **Application installée** : `%APPDATA%/Facturation/data/lfb.db` (chemin utilisateur standard, défini via `LFB_DATA_DIR`)
 - **Premier lancement** : si aucune base n'existe, l'application copie `server/default.db` (les données actuelles du développement) puis applique le schéma et les migrations.
 
 Schéma : `units`, `clients`, `invoices`, `invoice_lines`, `counters`, `settings`.

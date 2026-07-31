@@ -24,5 +24,5 @@ app.use(express.static(DIST, { index: false, maxAge: '1h' }));
 app.get('*', (_req, res) => res.sendFile(path.join(DIST, 'index.html')));
 
 app.listen(PORT, HOST, () => {
-  console.log(`Facturation CRMA — http://localhost:${PORT}`);
+  console.log(`Facturation — http://localhost:${PORT}`);
 });

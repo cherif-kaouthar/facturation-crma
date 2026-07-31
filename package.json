@@ -1,5 +1,5 @@
 {
-  "name": "facturation-crma-lfb",
+  "name": "facturation",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -44,8 +44,8 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "appId": "com.lfb.facturation-crma",
-    "productName": "Facturation CRMA",
+    "appId": "com.lfb.facturation",
+    "productName": "Facturation",
     "directories": {
       "output": "release"
     },

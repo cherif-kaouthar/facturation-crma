@@ -228,7 +228,7 @@ export function InvoiceEditor({
   }
   const [csvPreview, setCsvPreview] = useState<CsvRow[] | null>(null);
 
-  const csvTemplate = `Police,Échéance,Nette,FGA,Timbre,Observations\n10/2026,2026-01-15,12500.00,2500.00,40,Assurance Incendie & Risques Annexes\n11/2026,2026-02-15,8300.50,1660.00,40,Assurance Tous Risques`;
+  const csvTemplate = `Police,Échéance,Nette,FGA,Timbre,Observations\n10/2026,2026-01-15,12500.00,2500.00,40,Assurance incendie\n11/2026,2026-02-15,8300.50,1660.00,40,Assurance tous risques`;
 
   function parseDate(raw: string): string {
     const s = raw.trim();

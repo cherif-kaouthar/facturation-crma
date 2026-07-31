@@ -266,8 +266,6 @@ export function initSchemaAndMigrations() {
   ensureColumn('invoices', 'client_phone', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('units', 'address', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('units', 'archived', "INTEGER NOT NULL DEFAULT 0");
-
-  seed();
 }
 
 initSchemaAndMigrations();
@@ -278,36 +276,30 @@ initSchemaAndMigrations();
 
 export const DEFAULT_SETTINGS = {
   company: {
-    name: 'CRMA de Lakhdaria',
-    address: 'Cité 05 Juillet Lakhdaria, W. de Bouira',
-    agrement: "Numéro d'agrément : 60 du 14/07/2011",
-    nif: '000110139009162',
-    art: '2000018597',
-    bna: 'BNA Lakhdaria 00100576030000015770',
-    ccp: 'CCP 00799990000754241069',
-    tel: '020 54 36 94',
-    fax: '020 54 35 95',
-    city: 'Lakhdaria',
+    name: '',
+    address: '',
+    agrement: '',
+    nif: '',
+    art: '',
+    bna: '',
+    ccp: '',
+    tel: '',
+    fax: '',
+    city: '',
     customFields: [],
   },
   client: {
-    name: 'LAITERIE FROMAGERIE LFB',
+    name: '',
     customFields: [],
   },
   billing: {
     tvaRate: 0.19,
     defaultTimbre: 40,
-    defaultObs: 'Assurance Incendie & Risques Annexes',
+    defaultObs: '',
     numberPadding: 4,
     currency: 'DA',
     pageOrientation: 'portrait',
-    observationPresets: [
-      'Assurance Incendie & Risques Annexes',
-      'Assurance Catastrophe Naturelle',
-      'Assurance Tous Risques',
-      'Assurance Transport',
-      'Assurance Multirisque',
-    ],
+    observationPresets: [],
   },
   branding: {
     // data: URL of the uploaded logo, or '' to fall back to the built-in mark
@@ -356,67 +348,3 @@ export const saveSettings = db.transaction((patch) => {
   }
   return next;
 });
-
-/* ------------------------------------------------------------------ */
-/* Seed                                                                */
-/* ------------------------------------------------------------------ */
-
-export function seed() {
-  const now = new Date().toISOString();
-
-  const { count: unitCount } = db.prepare('SELECT COUNT(*) AS count FROM units').get();
-  if (unitCount === 0) {
-    const insertUnit = db.prepare(
-      'INSERT INTO units (name, address, created_at, updated_at) VALUES (?, ?, ?, ?)'
-    );
-    db.transaction(() => {
-      insertUnit.run('La Ferme EURL DBK SOFLAIT DBK', 'Wilaya de Tizi Ouzou', now, now);
-      insertUnit.run('Zone Industrielle de Rouiba', "Wilaya d'Alger", now, now);
-    })();
-  }
-
-  const { count: clientCount } = db.prepare('SELECT COUNT(*) AS count FROM clients').get();
-  if (clientCount === 0) {
-    const insertClient = db.prepare(
-      `INSERT INTO clients (name, type, location, nif, art, phone, email, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    db.transaction(() => {
-      insertClient.run(
-        'LAITERIE FROMAGERIE LFB',
-        'company',
-        'Draâ El Mizan, Wilaya de Tizi Ouzou',
-        '000115019008821',
-        '1501004523',
-        '026 34 12 80',
-        'contact@lfb-dz.com',
-        now,
-        now
-      );
-      insertClient.run(
-        'Complexe Agro-Alimentaire Soummam',
-        'company',
-        'Akbou, Wilaya de Béjaïa',
-        '000206018005432',
-        '0601008765',
-        '034 35 60 00',
-        'info@soummam-dz.com',
-        now,
-        now
-      );
-      insertClient.run(
-        'Kamel Haddad',
-        'person',
-        'Lakhdaria, Wilaya de Bouira',
-        '',
-        '',
-        '0550 12 34 56',
-        '',
-        now,
-        now
-      );
-    })();
-  }
-}
-
-seed();

@@ -94,6 +94,12 @@ export default function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  /* ---------------- Window title (Electron title bar) ---------------- */
+  useEffect(() => {
+    const companyName = settings?.company?.name?.trim();
+    document.title = companyName ? `${companyName} — ${t.appName}` : t.appName;
+  }, [settings, t]);
+
   /* ---------------- Boot ---------------- */
   useEffect(() => {
     let cancelled = false;

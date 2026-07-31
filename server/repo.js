@@ -325,7 +325,7 @@ function validateHeader(payload) {
   // Fallback to default client if clientName is blank
   if (!clientName) {
     const settings = getSettings();
-    clientName = settings.client?.name || 'LAITERIE FROMAGERIE LFB';
+    clientName = settings.client?.name || '';
   }
 
   const date = String(payload?.date ?? '').trim();
@@ -352,7 +352,7 @@ const selectInvoice = `
 
 function mapInvoice(row, lines) {
   const settings = getSettings();
-  const defaultClientName = settings.client?.name || 'LAITERIE FROMAGERIE LFB';
+  const defaultClientName = settings.client?.name || '';
 
   return {
     id: row.id,

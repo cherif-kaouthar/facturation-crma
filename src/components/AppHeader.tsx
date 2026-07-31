@@ -58,9 +58,6 @@ export function AppHeader({
               <span className="block truncate font-narrow text-base sm:text-lg font-bold uppercase tracking-[0.05em] leading-tight">
                 {t.appName}
               </span>
-              <span className="block truncate text-[11px] sm:text-xs font-medium text-white/80 leading-tight mt-0.5">
-                {t.appSubtitle}
-              </span>
             </span>
           </button>
 

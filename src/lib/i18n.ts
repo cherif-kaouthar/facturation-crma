@@ -6,8 +6,7 @@ import type { Language } from '../types';
  * errors say what happened and what to do about it.
  */
 const fr = {
-  appName: 'Facturation CRMA',
-  appSubtitle: 'Caisse Régionale de Mutualité Agricole',
+  appName: 'Facturation',
 
   // Navigation
   ledger: 'Factures',
@@ -231,7 +230,6 @@ type Dictionary = typeof fr;
 
 const ar: Dictionary = {
   appName: 'فوترة CRMA',
-  appSubtitle: 'التأمين الفلاحي — ملبنة وجبنة LFB',
 
   ledger: 'الفواتير',
   clients: 'العملاء',
