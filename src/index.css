@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * Design tokens — "Registre"
+ * A cool, instrument-like administrative surface. The tool chrome stays
+ * quiet in pine and graphite; the printed sheet is the only warm thing
+ * on screen, and seal red appears in exactly two places: the numbering
+ * imprint and destructive actions.
+ * ------------------------------------------------------------------ */
+@theme {
+  --color-ink: #0f1512;
+  --color-slate: #63707a;
+  --color-mute: #8c979f;
+
+  --color-pine: #16503b;
+  --color-pine-dark: #0e3a2b;
+  --color-pine-mid: #2c6b53;
+  --color-pine-tint: #e9f0ec;
+
+  --color-desk: #e8ebec;
+  --color-paper: #ffffff;
+  --color-rule: #d3d9dc;
+  --color-rule-soft: #e6eaec;
+
+  --color-seal: #a32a1e;
+  --color-seal-tint: #fbeeec;
+
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-narrow: "Archivo Narrow", "Archivo", system-ui, sans-serif;
+  --font-doc: "Source Serif 4", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-arabic: "Cairo", system-ui, sans-serif;
+  --font-arabic-doc: "Noto Naskh Arabic", "Cairo", serif;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-desk);
+    color: var(--color-ink);
+    font-family: var(--font-display);
+  }
+
+  /* Arabic swaps the whole UI face; the document keeps its own Naskh. */
+  [dir="rtl"] body {
+    font-family: var(--font-arabic);
+  }
+
+  /* One visible focus treatment for every interactive element. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-pine-mid);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  ::selection {
+    background: var(--color-pine);
+    color: #fff;
+  }
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hairline used for ledger rules and document borders. */
+  .rule-b {
+    box-shadow: inset 0 -1px 0 var(--color-rule-soft);
+  }
+}
+
+/* The invoice reference — clean monospace, no stamp styling. */
+.imprint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+  padding: 0.1em 0.2em;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.imprint-doc {
+  font-size: 1.15em;
+}
+
+/* Ledger rows: the hairline lives on the row so the sticky head stays clean. */
+.ledger-row {
+  box-shadow: inset 0 -1px 0 var(--color-rule-soft);
+}
+
+.ledger-row:last-child {
+  box-shadow: none;
+}
+
+/* Number inputs in the editor grid: strip spinners, keep the digits aligned. */
+.amount-input::-webkit-outer-spin-button,
+.amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.amount-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Print — only the invoice sheet survives.
+ * ------------------------------------------------------------------ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 12mm 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Lift the sheet out of the app layout and let it own the page. */
+  .print-root {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .sheet {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+  }
+
+  /* Keep table ink faithful on printers that drop backgrounds. */
+  .sheet table,
+  .sheet th,
+  .sheet td,
+  .imprint {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sheet thead {
+    display: table-header-group;
+  }
+
+  .sheet tr,
+  .sheet .avoid-break {
+    break-inside: avoid;
+  }
+}

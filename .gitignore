@@ -1,0 +1,10 @@
+node_modules/
+build/
+dist/
+coverage/
+release/
+data/backups/
+.DS_Store
+*.log
+.env*
+!.env.example

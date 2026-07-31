@@ -1,0 +1,8 @@
+{
+  "name": "Remix crma-facture",
+  "description": "Imported from GitHub: A7medAmine/crma-facture",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

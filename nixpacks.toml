@@ -1,0 +1,15 @@
+# nixpacks.toml
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+
+[phases.install]
+cmds = ["npm ci"]
+onlyIncludeFiles = ["package.json", "package-lock.json"]
+
+[phases.build]
+cmds = ["npm run build"]
+dependsOn = ["install"]
+
+[start]
+cmd = "npm start"

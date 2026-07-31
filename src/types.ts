@@ -1,0 +1,148 @@
+export type Language = 'fr' | 'ar';
+
+export type ClientType = 'company' | 'person';
+
+export interface Client {
+  id: number;
+  name: string;
+  type: ClientType;
+  location: string;
+  nif?: string;
+  art?: string;
+  phone?: string;
+  email?: string;
+  archived?: boolean;
+  invoiceCount?: number;
+  totalBilled?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Unit {
+  id: number;
+  name: string;
+  address: string;
+  archived: boolean;
+  invoiceCount: number;
+  totalBilled: number;
+  createdAt?: string;
+}
+
+export interface InvoiceLine {
+  id: string;
+  police: string;
+  echeance: string;
+  nette: number;
+  fga: number;
+  timbre: number;
+  obs: string;
+}
+
+export interface InvoiceTotals {
+  nette: number;
+  tva: number;
+  fga: number;
+  timbre: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: number;
+  unitId: number;
+  unitName: string;
+  unitAddress: string;
+  clientId?: number | null;
+  clientName: string;
+  clientType: ClientType;
+  clientLocation: string;
+  clientNif?: string;
+  clientArt?: string;
+  clientPhone?: string;
+  seq: number;
+  number: string;
+  year: number;
+  /** Display identity, e.g. "0012/2026". */
+  reference: string;
+  date: string;
+  notes: string;
+  tvaRate: number;
+  pageOrientation?: PageOrientation;
+  totals: InvoiceTotals;
+  totalAmount: number;
+  lineCount: number;
+  policies: string;
+  lines: InvoiceLine[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface InvoiceDraft {
+  unitId: number;
+  clientId?: number | null;
+  clientName?: string;
+  clientType?: ClientType;
+  clientLocation?: string;
+  clientNif?: string;
+  clientArt?: string;
+  clientPhone?: string;
+  date: string;
+  year?: number;
+  notes: string;
+  pageOrientation?: PageOrientation;
+  lines: Array<Omit<InvoiceLine, 'id'> & { id?: string }>;
+}
+
+export interface CustomField {
+  label: string;
+  value: string;
+}
+
+export interface CompanyProfile {
+  name: string;
+  address: string;
+  agrement: string;
+  nif: string;
+  art: string;
+  bna: string;
+  ccp: string;
+  tel: string;
+  fax: string;
+  city: string;
+  customFields: CustomField[];
+}
+
+export interface ClientProfile {
+  name: string;
+  customFields: CustomField[];
+}
+
+export type PageOrientation = 'portrait' | 'landscape';
+
+export interface BillingConfig {
+  tvaRate: number;
+  defaultTimbre: number;
+  defaultObs: string;
+  numberPadding: number;
+  currency: string;
+  observationPresets: string[];
+  pageOrientation: PageOrientation;
+}
+
+export interface Settings {
+  company: CompanyProfile;
+  client: ClientProfile;
+  billing: BillingConfig;
+  branding: { logo: string };
+  app: { language: Language };
+}
+
+export interface Stats {
+  count: number;
+  billed: number;
+  tva: number;
+  yearCount: number;
+  yearBilled: number;
+  year: number;
+  latest: { reference: string; date: string } | null;
+  next: { year: number; seq: number; number: string };
+}
