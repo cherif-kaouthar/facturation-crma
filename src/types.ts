@@ -146,3 +146,46 @@ export interface Stats {
   latest: { reference: string; date: string } | null;
   next: { year: number; seq: number; number: string };
 }
+
+/* ------------------------------------------------------------------ */
+/* Cloud sync                                                          */
+/* ------------------------------------------------------------------ */
+
+export interface SyncConnection {
+  /** How this device reached the database: direct IPv6 endpoint or shared pooler. */
+  method: 'direct' | 'pooler';
+  /** Region used by the pooler, e.g. "eu-central-1". */
+  region: string | null;
+}
+
+export interface SyncStatus {
+  enabled: boolean;
+  configured: boolean;
+  projectUrl: string | null;
+  projectRef: string | null;
+  hasDbPassword: boolean;
+  connection: SyncConnection | null;
+  lastSyncAt: string | null;
+  lastError: string | null;
+}
+
+export interface SyncSetupPayload {
+  projectUrl: string;
+  publishableKey: string;
+  databasePassword: string;
+}
+
+export interface SyncResult {
+  ok: boolean;
+  errors?: string[];
+  error?: string | null;
+  enabled?: boolean;
+  configured?: boolean;
+  projectUrl?: string | null;
+  projectRef?: string | null;
+  hasDbPassword?: boolean;
+  connection?: SyncConnection | null;
+  newlyApplied?: Array<{ version: number; file: string }>;
+  lastSyncAt?: string | null;
+  lastError?: string | null;
+}

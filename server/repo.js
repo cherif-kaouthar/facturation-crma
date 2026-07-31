@@ -12,6 +12,24 @@ export class ApiError extends Error {
 const nowIso = () => new Date().toISOString();
 
 /* ------------------------------------------------------------------ */
+/* Sync bookkeeping — local edits mark rows dirty; hard deletes leave  */
+/* a tombstone so the cloud soft-delete can be applied later.          */
+/* ------------------------------------------------------------------ */
+
+const insertTombstone = db.prepare(
+  `INSERT INTO sync_tombstones (entity, local_id, cloud_id, deleted_at)
+   VALUES (?, ?, ?, ?)
+   ON CONFLICT(entity, local_id) DO UPDATE SET deleted_at = excluded.deleted_at`
+);
+
+function markDeleted(entity, localId) {
+  const cloudId = db
+    .prepare(`SELECT cloud_id FROM ${entity} WHERE id = ?`)
+    .get(localId)?.cloud_id ?? null;
+  insertTombstone.run(entity, localId, cloudId, nowIso());
+}
+
+/* ------------------------------------------------------------------ */
 /* Units                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -60,7 +78,7 @@ export function createUnit(payload) {
   const address = String(payload?.address ?? '').trim().slice(0, 200);
   const ts = nowIso();
   const info = db
-    .prepare('INSERT INTO units (name, address, created_at, updated_at) VALUES (?, ?, ?, ?)')
+    .prepare('INSERT INTO units (name, address, created_at, updated_at, sync_dirty) VALUES (?, ?, ?, ?, 1)')
     .run(name, address, ts, ts);
   return getUnit(info.lastInsertRowid);
 }
@@ -70,7 +88,7 @@ export function updateUnit(id, payload) {
   const name = requireText(payload?.name, 'nom de l’unité');
   const address = String(payload?.address ?? '').trim().slice(0, 200);
   const archived = payload?.archived ? 1 : 0;
-  db.prepare('UPDATE units SET name = ?, address = ?, archived = ?, updated_at = ? WHERE id = ?')
+  db.prepare('UPDATE units SET name = ?, address = ?, archived = ?, updated_at = ?, sync_dirty = 1 WHERE id = ?')
     .run(name, address, archived, nowIso(), id);
   return getUnit(id);
 }
@@ -86,6 +104,7 @@ export function deleteUnit(id) {
       `« ${unit.name} » porte ${count} facture${count > 1 ? 's' : ''}. Archivez l’unité pour la retirer de la liste sans toucher à ses factures.`
     );
   }
+  markDeleted('units', id);
   db.prepare('DELETE FROM units WHERE id = ?').run(id);
   return { id };
 }
@@ -155,8 +174,8 @@ export function createClient(payload) {
 
   const info = db
     .prepare(
-      `INSERT INTO clients (name, type, location, nif, art, phone, email, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO clients (name, type, location, nif, art, phone, email, created_at, updated_at, sync_dirty)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
     )
     .run(name, type, location, nif, art, phone, email, ts, ts);
 
@@ -176,7 +195,7 @@ export function updateClient(id, payload) {
 
   db.prepare(
     `UPDATE clients
-        SET name = ?, type = ?, location = ?, nif = ?, art = ?, phone = ?, email = ?, archived = ?, updated_at = ?
+        SET name = ?, type = ?, location = ?, nif = ?, art = ?, phone = ?, email = ?, archived = ?, updated_at = ?, sync_dirty = 1
       WHERE id = ?`
   ).run(name, type, location, nif, art, phone, email, archived, nowIso(), id);
 
@@ -194,6 +213,7 @@ export function deleteClient(id) {
       `« ${client.name} » porte ${count} facture${count > 1 ? 's' : ''}. Archivez le client pour le masquer de la liste.`
     );
   }
+  markDeleted('clients', id);
   db.prepare('DELETE FROM clients WHERE id = ?').run(id);
   return { id };
 }
@@ -477,8 +497,8 @@ export const createInvoice = db.transaction((payload) => {
       `INSERT INTO invoices
          (unit_id, client_id, client_name, client_type, client_location, client_nif, client_art, client_phone,
           seq, number, year, date, notes, tva_rate, page_orientation,
-          total_nette, total_tva, total_fga, total_timbre, total_amount, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          total_nette, total_tva, total_fga, total_timbre, total_amount, created_at, updated_at, sync_dirty)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
     )
     .run(
       header.unitId, header.clientId, header.clientName, header.clientType, header.clientLocation, header.clientNif, header.clientArt, header.clientPhone,
@@ -515,7 +535,7 @@ export const updateInvoice = db.transaction((id, payload) => {
         SET unit_id = ?, client_id = ?, client_name = ?, client_type = ?, client_location = ?, client_nif = ?, client_art = ?, client_phone = ?,
             date = ?, notes = ?, page_orientation = ?,
             total_nette = ?, total_tva = ?, total_fga = ?, total_timbre = ?, total_amount = ?,
-            updated_at = ?
+            updated_at = ?, sync_dirty = 1
       WHERE id = ?`
   ).run(
     header.unitId, header.clientId, header.clientName, header.clientType, header.clientLocation, header.clientNif, header.clientArt, header.clientPhone,
@@ -550,6 +570,7 @@ export function duplicateInvoice(id) {
 
 export function deleteInvoice(id) {
   getInvoice(id);
+  markDeleted('invoices', id);
   db.prepare('DELETE FROM invoices WHERE id = ?').run(id);
   return { id: Number(id) };
 }

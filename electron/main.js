@@ -2,6 +2,9 @@ import { app, BrowserWindow, Menu, dialog, nativeImage, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { registerSyncIpc } from './sync/ipc.js';
+import { startSyncScheduler, runSyncCycle } from './sync/engine.js';
+import { loadCredentials } from './sync/credentials.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
@@ -10,7 +13,11 @@ const isDev = !app.isPackaged;
 /*  Database directory – use OS-standard userData path                 */
 /* ------------------------------------------------------------------ */
 const userDataPath = app.getPath('userData');
-const dataDir = path.join(userDataPath, 'data');
+// In dev the API runs inside Vite (server/data), so the sync engine must
+// share that same file; in production the app owns everything under userData.
+const dataDir = isDev
+  ? path.resolve(__dirname, '..', 'data')
+  : path.join(userDataPath, 'data');
 process.env.LFB_DATA_DIR = dataDir;
 
 /* ------------------------------------------------------------------ */
@@ -121,7 +128,7 @@ async function createWindow() {
     icon: appIcon,
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -170,7 +177,13 @@ async function createWindow() {
 /* ------------------------------------------------------------------ */
 /*  App lifecycle                                                      */
 /* ------------------------------------------------------------------ */
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerSyncIpc();
+  startSyncScheduler();
+  const creds = loadCredentials();
+  if (creds?.enabled) runSyncCycle();
+  return createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (httpServer) {

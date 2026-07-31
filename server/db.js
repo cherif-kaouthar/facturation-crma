@@ -183,7 +183,9 @@ export function initSchemaAndMigrations() {
       address     TEXT    NOT NULL DEFAULT '',
       archived    INTEGER NOT NULL DEFAULT 0,
       created_at  TEXT    NOT NULL,
-      updated_at  TEXT    NOT NULL
+      updated_at  TEXT    NOT NULL,
+      cloud_id    TEXT,
+      sync_dirty  INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS clients (
@@ -197,7 +199,9 @@ export function initSchemaAndMigrations() {
       email       TEXT    NOT NULL DEFAULT '',
       archived    INTEGER NOT NULL DEFAULT 0,
       created_at  TEXT    NOT NULL,
-      updated_at  TEXT    NOT NULL
+      updated_at  TEXT    NOT NULL,
+      cloud_id    TEXT,
+      sync_dirty  INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS invoices (
@@ -224,6 +228,8 @@ export function initSchemaAndMigrations() {
       total_amount    REAL    NOT NULL DEFAULT 0,
       created_at      TEXT    NOT NULL,
       updated_at      TEXT    NOT NULL,
+      cloud_id        TEXT,
+      sync_dirty      INTEGER NOT NULL DEFAULT 0,
       UNIQUE (year, seq)
     );
 
@@ -245,13 +251,35 @@ export function initSchemaAndMigrations() {
     );
 
     CREATE TABLE IF NOT EXISTS settings (
-      key   TEXT PRIMARY KEY,
-      value TEXT NOT NULL
+      key        TEXT PRIMARY KEY,
+      value      TEXT NOT NULL,
+      updated_at TEXT,
+      sync_dirty INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE INDEX IF NOT EXISTS idx_invoices_unit ON invoices(unit_id);
     CREATE INDEX IF NOT EXISTS idx_invoices_year ON invoices(year);
     CREATE INDEX IF NOT EXISTS idx_lines_invoice  ON invoice_lines(invoice_id);
+
+    /* Cloud sync bookkeeping */
+    CREATE TABLE IF NOT EXISTS sync_meta (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_tombstones (
+      entity     TEXT    NOT NULL,
+      local_id   INTEGER NOT NULL,
+      cloud_id   TEXT,
+      deleted_at TEXT    NOT NULL,
+      PRIMARY KEY (entity, local_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS seq_batches (
+      year     INTEGER PRIMARY KEY,
+      from_seq INTEGER NOT NULL,
+      to_seq   INTEGER NOT NULL
+    );
   `);
 
   ensureColumn('invoices', 'page_orientation', "TEXT NOT NULL DEFAULT 'portrait'");
@@ -266,6 +294,23 @@ export function initSchemaAndMigrations() {
   ensureColumn('invoices', 'client_phone', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('units', 'address', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('units', 'archived', "INTEGER NOT NULL DEFAULT 0");
+
+  // Sync metadata for existing databases (must exist before the unique
+  // cloud indexes are created on top of them).
+  ensureColumn('units', 'cloud_id', 'TEXT');
+  ensureColumn('units', 'sync_dirty', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('clients', 'cloud_id', 'TEXT');
+  ensureColumn('clients', 'sync_dirty', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('invoices', 'cloud_id', 'TEXT');
+  ensureColumn('invoices', 'sync_dirty', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('settings', 'updated_at', 'TEXT');
+  ensureColumn('settings', 'sync_dirty', 'INTEGER NOT NULL DEFAULT 0');
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_units_cloud    ON units(cloud_id)    WHERE cloud_id IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_cloud  ON clients(cloud_id)  WHERE cloud_id IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_cloud ON invoices(cloud_id) WHERE cloud_id IS NOT NULL;
+  `);
 }
 
 initSchemaAndMigrations();
@@ -336,15 +381,31 @@ export function getSettings() {
 }
 
 const upsertSetting = db.prepare(
-  `INSERT INTO settings (key, value) VALUES (?, ?)
-   ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  `INSERT INTO settings (key, value, updated_at, sync_dirty)
+   VALUES (?, ?, ?, 1)
+   ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, sync_dirty = 1`
 );
 
 export const saveSettings = db.transaction((patch) => {
   const current = getSettings();
   const next = mergeDeep(current, patch);
+  const ts = new Date().toISOString();
   for (const key of Object.keys(DEFAULT_SETTINGS)) {
-    upsertSetting.run(key, JSON.stringify(next[key]));
+    upsertSetting.run(key, JSON.stringify(next[key]), ts);
   }
   return next;
 });
+
+/**
+ * Write a single settings key without marking it dirty — used by the sync
+ * engine to apply values pulled from the cloud without pushing them back.
+ */
+export function setSettingRaw(key, value, updatedAt) {
+  upsertSettingRaw.run(String(value), updatedAt, key);
+}
+
+const upsertSettingRaw = db.prepare(
+  `INSERT INTO settings (key, value, updated_at, sync_dirty)
+   VALUES (?, ?, ?, 0)
+   ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, sync_dirty = 0`
+);
