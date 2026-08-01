@@ -264,6 +264,21 @@ const fr = {
   syncLastSyncLabel: 'Dernière synchronisation',
   syncNever: 'jamais',
   syncError: 'Erreur de synchronisation',
+  syncScopesTitle: 'Données synchronisées',
+  syncScopesHint: 'Choisissez ce qui est partagé avec vos autres postes. Ce qui est décoché reste uniquement sur cet ordinateur.',
+  syncScopeInvoices: 'Factures',
+  syncScopeInvoicesHint: 'Factures, lignes et numérotation partagée.',
+  syncScopeClients: 'Clients',
+  syncScopeClientsHint: 'Fiches clients (nom, NIF, art., coordonnées).',
+  syncScopeUnits: 'Unités de production',
+  syncScopeUnitsHint: 'Requis par les factures : activé automatiquement.',
+  syncScopeSettings: 'Réglages',
+  syncScopeSettingsHint: 'Informations société, TVA, logo, présentation.',
+  syncScopesSaved: 'Sélection enregistrée.',
+  syncScopesFailed: 'Impossible d’enregistrer la sélection.',
+  syncScopeOff: 'Non synchronisé — reste sur ce poste.',
+  syncIssuesTitle: 'Éléments non synchronisés',
+  syncNoticesTitle: 'Ajustements automatiques',
 };
 
 type Dictionary = typeof fr;
@@ -514,6 +529,21 @@ const ar: Dictionary = {
   syncLastSyncLabel: 'آخر مزامنة',
   syncNever: 'أبدًا',
   syncError: 'خطأ في المزامنة',
+  syncScopesTitle: 'البيانات المُزامنة',
+  syncScopesHint: 'اختر ما تتم مشاركته مع أجهزتك الأخرى. ما تلغي تحديده يبقى على هذا الجهاز فقط.',
+  syncScopeInvoices: 'الفواتير',
+  syncScopeInvoicesHint: 'الفواتير وسطورها والترقيم المشترك.',
+  syncScopeClients: 'العملاء',
+  syncScopeClientsHint: 'بطاقات العملاء (الاسم، رقم التعريف الجبائي، المادة، بيانات الاتصال).',
+  syncScopeUnits: 'وحدات الإنتاج',
+  syncScopeUnitsHint: 'مطلوبة للفواتير: تُفعَّل تلقائياً.',
+  syncScopeSettings: 'الإعدادات',
+  syncScopeSettingsHint: 'معلومات الشركة، الرسم على القيمة المضافة، الشعار، العرض.',
+  syncScopesSaved: 'تم حفظ الاختيار.',
+  syncScopesFailed: 'تعذر حفظ الاختيار.',
+  syncScopeOff: 'غير مُزامن — يبقى على هذا الجهاز.',
+  syncIssuesTitle: 'عناصر لم تتم مزامنتها',
+  syncNoticesTitle: 'تعديلات تلقائية',
 };
 
 const dictionaries: Record<Language, Dictionary> = { fr, ar };

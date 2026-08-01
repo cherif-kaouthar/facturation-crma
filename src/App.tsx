@@ -3,6 +3,7 @@ import { AlertTriangle, Building2, Plus } from 'lucide-react';
 import type { Client, ClientType, Invoice, InvoiceDraft, Language, Settings, Stats, Unit } from './types';
 import { api, ApiError } from './lib/api';
 import { getTranslation } from './lib/i18n';
+import { getSyncAPI } from './lib/sync';
 import { AppHeader } from './components/AppHeader';
 import { Ledger } from './components/Ledger';
 import { ClientsPage } from './components/ClientsPage';
@@ -183,6 +184,48 @@ export default function App() {
       reportError(error);
     }
   }, [reportError]);
+
+  /* ---------------- Cloud sync arrivals ---------------- */
+  /**
+   * The sync engine writes straight into SQLite, so a change pulled from
+   * another device is invisible until something refetches. Reload quietly
+   * (no spinner) whenever a cycle reports it applied cloud data.
+   */
+  useEffect(() => {
+    const sync = getSyncAPI();
+    if (!sync?.onChanged || booting || bootError) return;
+
+    let cancelled = false;
+    const unsubscribe = sync.onChanged(() => {
+      (async () => {
+        try {
+          const [list, loadedStats, next, loadedClients, loadedUnits, loadedSettings] =
+            await Promise.all([
+              api.listInvoices({ unitId: scopeId, q: debouncedSearch.trim() || undefined }),
+              api.getStats(scopeId),
+              api.nextNumber(),
+              api.listClients(),
+              api.listUnits(),
+              api.getSettings(),
+            ]);
+          if (cancelled) return;
+          setInvoices(list);
+          setStats(loadedStats);
+          setNextNumber(next);
+          setClients(loadedClients);
+          setUnits(loadedUnits);
+          setSettings(loadedSettings);
+        } catch {
+          /* transient: the next cycle will report again */
+        }
+      })();
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [booting, bootError, scopeId, debouncedSearch]);
 
   /* ---------------- Client actions ---------------- */
   const submitClient = useCallback(

@@ -268,10 +268,15 @@ export function setNextSeq(year, nextSeq) {
       `Le numéro ${formatNumber(value)} est déjà utilisé en ${y}. Le plus petit numéro disponible est ${formatNumber(floor)}.`
     );
   }
-  db.prepare(
-    `INSERT INTO counters (year, next_seq) VALUES (?, ?)
-     ON CONFLICT(year) DO UPDATE SET next_seq = excluded.next_seq`
-  ).run(y, value);
+  db.transaction(() => {
+    db.prepare(
+      `INSERT INTO counters (year, next_seq, sync_dirty) VALUES (?, ?, 1)
+       ON CONFLICT(year) DO UPDATE SET next_seq = excluded.next_seq, sync_dirty = 1`
+    ).run(y, value);
+    // Drop any block reserved from the cloud: it starts at the old position,
+    // so keeping it would drag the numbering straight back where it was.
+    db.prepare('DELETE FROM seq_batches WHERE year = ?').run(y);
+  })();
   return peekNextNumber(y);
 }
 

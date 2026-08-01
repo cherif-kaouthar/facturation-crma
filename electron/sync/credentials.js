@@ -10,6 +10,9 @@
 import { app, safeStorage } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
+import { resolveScopes, SYNC_SCOPES } from './scopes.js';
+
+export { resolveScopes, SYNC_SCOPES };
 
 const SERVICE = 'facturation-sync';
 const ACCOUNT = 'supabase-db-password';
@@ -58,6 +61,7 @@ export function loadCredentials() {
     enabled: !!raw.enabled,
     hasDbPassword: !!raw.dbSecret,
     dbSecret: raw.dbSecret ?? null,
+    scopes: resolveScopes(raw.scopes),
     connection:
       connection && (connection.method === 'direct' || connection.method === 'pooler')
         ? {
@@ -107,6 +111,7 @@ export async function saveCredentials({
   databasePassword,
   connection = null,
 }) {
+  const previous = readFile();
   const dbSecret = await storeSecret(databasePassword);
   writeFile({
     projectUrl,
@@ -114,6 +119,9 @@ export async function saveCredentials({
     enabled: true,
     dbSecret,
     connection,
+    // Reconnecting to the same project must not silently reset the user's
+    // choice of what to share.
+    scopes: resolveScopes(previous?.scopes),
   });
   return loadCredentials();
 }
@@ -122,6 +130,15 @@ export async function setEnabled(enabled) {
   const raw = readFile();
   if (!raw) return null;
   raw.enabled = !!enabled;
+  writeFile(raw);
+  return loadCredentials();
+}
+
+/** Merge a partial scope map into the stored credentials. */
+export async function setScopes(patch) {
+  const raw = readFile();
+  if (!raw) return null;
+  raw.scopes = resolveScopes({ ...resolveScopes(raw.scopes), ...(patch ?? {}) });
   writeFile(raw);
   return loadCredentials();
 }

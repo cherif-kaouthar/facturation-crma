@@ -18,6 +18,16 @@ contextBridge.exposeInMainWorld('syncAPI', {
   status: () => ipcRenderer.invoke('sync:status'),
   setup: (payload) => ipcRenderer.invoke('sync:setup', payload),
   toggle: (enabled) => ipcRenderer.invoke('sync:toggle', enabled),
+  setScopes: (scopes) => ipcRenderer.invoke('sync:scopes', scopes),
   forget: () => ipcRenderer.invoke('sync:forget'),
   syncNow: () => ipcRenderer.invoke('sync:now'),
+  /**
+   * Fires after a sync cycle applied cloud changes to the local database.
+   * Returns an unsubscribe function so React effects can clean up.
+   */
+  onChanged: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('sync:changed', listener);
+    return () => ipcRenderer.removeListener('sync:changed', listener);
+  },
 });

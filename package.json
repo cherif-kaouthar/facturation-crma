@@ -11,7 +11,8 @@
     "start": "node server/index.js",
     "lint": "tsc --noEmit",
     "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "npm run build && electron-builder",
+    "db:reset-default": "node scripts/reset-default-db.mjs",
+    "electron:build": "npm run db:reset-default && npm run build && electron-builder",
     "electron:start": "electron ."
   },
   "dependencies": {

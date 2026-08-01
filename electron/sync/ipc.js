@@ -13,11 +13,13 @@ import {
   loadCredentials,
   saveCredentials,
   setEnabled,
+  setScopes,
   clearCredentials,
+  SYNC_SCOPES,
 } from './credentials.js';
 import { runMigrations, resolveConnection } from './migrator.js';
 import { validateSetup, checkProjectHealth } from './validate.js';
-import { runSyncCycle, getLastSync } from './engine.js';
+import { runSyncCycle, getLastSync, resetConnection } from './engine.js';
 
 export function statusPayload() {
   const creds = loadCredentials();
@@ -37,8 +39,11 @@ export function statusPayload() {
     projectRef,
     hasDbPassword: !!creds?.hasDbPassword,
     connection: creds?.connection ?? null,
+    scopes: creds?.scopes ?? null,
     lastSyncAt: last.lastSyncAt,
     lastError: last.lastError,
+    issues: last.issues ?? {},
+    notices: last.notices ?? [],
   };
 }
 
@@ -80,6 +85,7 @@ export function registerSyncIpc() {
         databasePassword,
         connection: { method, region: region ?? null },
       });
+      await resetConnection(); // credentials changed — drop any cached client
       runSyncCycle(); // first background sync (enabled is set by saveCredentials)
       return {
         ok: true,
@@ -115,13 +121,34 @@ export function registerSyncIpc() {
     return { ok: true, ...statusPayload() };
   });
 
+  ipcMain.handle('sync:scopes', async (_event, patch) => {
+    const creds = loadCredentials();
+    if (!creds) return { ok: false, errors: ['Configurez d’abord la synchronisation.'] };
+
+    const clean = {};
+    for (const key of SYNC_SCOPES) {
+      if (typeof patch?.[key] === 'boolean') clean[key] = patch[key];
+    }
+    await setScopes(clean);
+    // Apply the new selection straight away rather than after the next tick.
+    if (loadCredentials()?.enabled) runSyncCycle();
+    return { ok: true, ...statusPayload() };
+  });
+
   ipcMain.handle('sync:now', async () => {
-    const result = await runSyncCycle();
+    let result = await runSyncCycle();
+    // A cycle was already in flight, so this request only queued a rerun.
+    // Wait for a real one rather than reporting a success that never ran.
+    if (result.skipped) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      result = await runSyncCycle();
+    }
     return { ok: result.ok, error: result.error ?? null, ...statusPayload() };
   });
 
   ipcMain.handle('sync:forget', async () => {
     await clearCredentials();
+    await resetConnection();
     return { ok: true, ...statusPayload() };
   });
 }
