@@ -8,3 +8,9 @@ data/backups/
 *.log
 .env*
 !.env.example
+
+# SQLite databases (created at runtime / build time)
+*.db
+*.db-wal
+*.db-shm
+*.db-journal

@@ -1,10 +1,15 @@
 /**
- * Sanitise server/default.db before packaging.
+ * Create or sanitise server/default.db before packaging.
  *
  * default.db is copied into place the first time the app runs on a new
  * machine, so whatever it contains becomes that customer's starting state.
  * Run automatically by `npm run electron:build`; safe to run by hand at any
  * time (it is idempotent).
+ *
+ * The file is gitignored, so on a fresh checkout it does not exist yet: in
+ * that case it is created from scratch with the full local schema. When the
+ * file already exists (e.g. a pre-seeded template) it is upgraded to the full
+ * schema and then sanitised.
  *
  * What it guarantees for a fresh install:
  *
@@ -19,24 +24,25 @@
  *     same goes for sync_meta watermarks, which would make a new device skip
  *     the cloud history it has never actually read.
  *
- * Units, clients and settings are preserved, so the file can still be used as
- * a pre-seeded template — only invoices, numbering and sync state are cleared.
+ * Units, clients and settings are preserved, so an existing file can still be
+ * used as a pre-seeded template — only invoices, numbering and sync state are
+ * cleared. A freshly created file is schema-only (no data).
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase } from '../server/sqlite.js';
+import { applySchema } from '../server/schema.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DB = path.resolve(__dirname, '..', 'server', 'default.db');
+const created = !fs.existsSync(DEFAULT_DB);
 
-if (!fs.existsSync(DEFAULT_DB)) {
-  console.error(`[default-db] ${DEFAULT_DB} not found — nothing to reset.`);
-  process.exit(1);
-}
-
+// openDatabase creates the file if it is missing; applySchema then lays down
+// the full schema (idempotent, so an existing template is upgraded in place).
 const db = openDatabase(DEFAULT_DB);
+applySchema(db);
 const tables = new Set(
   db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((r) => r.name)
 );
@@ -71,7 +77,11 @@ if (!dirty) {
   const units = count('units');
   const clients = count('clients');
   const settings = count('settings');
-  console.log('[default-db] already clean — file untouched');
+  console.log(
+    created
+      ? '[default-db] created with the full schema'
+      : '[default-db] already clean — file untouched'
+  );
   console.log(
     `[default-db] template ships with ${units} unit(s), ${clients} client(s), ` +
       `${settings} settings row(s); numbering starts at 1.`
