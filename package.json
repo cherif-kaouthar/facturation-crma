@@ -1,9 +1,10 @@
 {
   "name": "facturation",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "electron/main.js",
+  "author": "cherif khadidja",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
@@ -84,5 +85,5 @@
       "createDesktopShortcut": true
     }
   },
-  "description": "Gestion des factures d assurance pour LAITERIE FROMAGERIE LFB"
+  "description": "Gestion des factures d'assurance  "
 }
