@@ -243,7 +243,7 @@ export function createApi() {
     const csv = repo.exportCsv(req.query);
     const stamp = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="factures-crma-${stamp}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="factures-${stamp}.csv"`);
     res.send(csv);
   }));
 

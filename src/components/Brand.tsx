@@ -1,13 +1,13 @@
 import React from 'react';
 
 /**
- * The CRMA mark: a wheat stalk between two figures. Used wherever no logo has
- * been uploaded in Réglages, and drawn with currentColor so it sits equally
+ * The built-in mark: a wheat stalk between two figures. Used wherever no logo
+ * has been uploaded in Réglages, and drawn with currentColor so it sits equally
  * well on the pine header and on the white invoice sheet.
  */
-export function CrmaMark({ className = 'h-10 w-10' }: { className?: string }) {
+export function AppMark({ className = 'h-10 w-10' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 500 500" className={className} role="img" aria-label="CRMA" fill="currentColor">
+    <svg viewBox="0 0 500 500" className={className} role="img" aria-label="Logo" fill="currentColor">
       <path d="M 245 160 h 10 v 210 h -10 Z" />
       <path d="M 250 45 c -8 20 -8 35 0 55 c 8 -20 8 -35 0 -55 Z" />
       {[105, 140, 175, 210, 245].map((y) => (
@@ -44,5 +44,5 @@ export function BrandLogo({
   if (logo) {
     return <img src={logo} alt={alt} className={`${className} ${objectFit === 'cover' ? 'object-cover' : 'object-contain'}`} />;
   }
-  return <CrmaMark className={`${className} ${tone === 'light' ? 'text-white' : 'text-pine'}`} />;
+  return <AppMark className={`${className} ${tone === 'light' ? 'text-white' : 'text-pine'}`} />;
 }

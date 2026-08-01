@@ -1,5 +1,5 @@
 -- 0001_init.sql
--- Cloud schema for the CRMA/LFB invoicing app.
+-- Cloud schema for the LFB invoicing app.
 --
 -- Mirrors the local SQLite model 1:1 (server/db.js + server/repo.js):
 --   invoices, invoice_lines, units, clients, counters, settings.

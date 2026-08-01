@@ -108,7 +108,7 @@ const fr = {
   invoiceTitle: 'FACTURE N°',
   billedTo: 'Doit',
   issuedAt: (city: string) => `${city}, le`,
-  signature: 'P / CRMA',
+  signature: 'P / LFB',
   stampNote: 'Cachet et signature',
   print: 'Imprimer',
   edit: 'Modifier',
@@ -284,7 +284,7 @@ const fr = {
 type Dictionary = typeof fr;
 
 const ar: Dictionary = {
-  appName: 'فوترة CRMA',
+  appName: 'فوترة',
 
   ledger: 'الفواتير',
   clients: 'العملاء',

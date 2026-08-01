@@ -71,59 +71,57 @@ if (!dirty) {
   const units = count('units');
   const clients = count('clients');
   const settings = count('settings');
-  db.close();
   console.log('[default-db] already clean — file untouched');
   console.log(
     `[default-db] template ships with ${units} unit(s), ${clients} client(s), ` +
       `${settings} settings row(s); numbering starts at 1.`
   );
-  process.exit(0);
-}
+} else {
+  db.transaction(() => {
+    for (const table of ['invoice_lines', 'invoices', 'counters', 'seq_batches', 'sync_meta', 'sync_tombstones']) {
+      if (has(table)) db.prepare(`DELETE FROM ${table}`).run();
+    }
+    for (const table of ['units', 'clients']) {
+      if (hasColumn(table, 'cloud_id')) db.prepare(`UPDATE ${table} SET cloud_id = NULL`).run();
+      if (hasColumn(table, 'sync_dirty')) db.prepare(`UPDATE ${table} SET sync_dirty = 0`).run();
+    }
+    if (hasColumn('settings', 'sync_dirty')) db.prepare('UPDATE settings SET sync_dirty = 0').run();
+    // Start AUTOINCREMENT ids from 1 again so a fresh install looks untouched.
+    if (has('sqlite_sequence')) db.prepare('DELETE FROM sqlite_sequence').run();
+  })();
 
-db.transaction(() => {
-  for (const table of ['invoice_lines', 'invoices', 'counters', 'seq_batches', 'sync_meta', 'sync_tombstones']) {
-    if (has(table)) db.prepare(`DELETE FROM ${table}`).run();
+  db.pragma('wal_checkpoint(TRUNCATE)');
+  try {
+    db.exec('VACUUM');
+  } catch {
+    /* not fatal — the file is already correct */
   }
-  for (const table of ['units', 'clients']) {
-    if (hasColumn(table, 'cloud_id')) db.prepare(`UPDATE ${table} SET cloud_id = NULL`).run();
-    if (hasColumn(table, 'sync_dirty')) db.prepare(`UPDATE ${table} SET sync_dirty = 0`).run();
+
+  const after = {
+    invoices: count('invoices'),
+    counters: count('counters'),
+    cloudIds: countCloudIds(),
+    syncMeta: count('sync_meta'),
+    units: count('units'),
+    clients: count('clients'),
+    settings: count('settings'),
+  };
+  db.close();
+
+  const failures = ['invoices', 'counters', 'cloudIds', 'syncMeta'].filter((k) => after[k] !== 0);
+  if (failures.length > 0) {
+    console.error(`[default-db] FAILED to clear: ${failures.join(', ')}`);
+    process.exitCode = 1;
   }
-  if (hasColumn('settings', 'sync_dirty')) db.prepare('UPDATE settings SET sync_dirty = 0').run();
-  // Start AUTOINCREMENT ids from 1 again so a fresh install looks untouched.
-  if (has('sqlite_sequence')) db.prepare('DELETE FROM sqlite_sequence').run();
-})();
 
-db.pragma('wal_checkpoint(TRUNCATE)');
-try {
-  db.exec('VACUUM');
-} catch {
-  /* not fatal — the file is already correct */
+  const cleared = Object.entries(before).filter(([, v]) => v > 0);
+  console.log(
+    cleared.length > 0
+      ? `[default-db] cleared ${cleared.map(([k, v]) => `${v} ${k}`).join(', ')}`
+      : '[default-db] already clean'
+  );
+  console.log(
+    `[default-db] template ships with ${after.units} unit(s), ${after.clients} client(s), ` +
+      `${after.settings} settings row(s); numbering starts at 1.`
+  );
 }
-
-const after = {
-  invoices: count('invoices'),
-  counters: count('counters'),
-  cloudIds: countCloudIds(),
-  syncMeta: count('sync_meta'),
-  units: count('units'),
-  clients: count('clients'),
-  settings: count('settings'),
-};
-db.close();
-
-const failures = ['invoices', 'counters', 'cloudIds', 'syncMeta'].filter((k) => after[k] !== 0);
-if (failures.length > 0) {
-  console.error(`[default-db] FAILED to clear: ${failures.join(', ')}`);
-  process.exit(1);
-}
-
-const cleared = Object.entries(before).filter(([, v]) => v > 0);
-console.log(
-  cleared.length > 0
-    ? `[default-db] cleared ${cleared.map(([k, v]) => `${v} ${k}`).join(', ')}`
-    : '[default-db] already clean'
-);
-console.log(
-  `[default-db] template ships with ${after.units} unit(s), ${after.clients} client(s), ` +
-    `${after.settings} settings row(s); numbering starts at 1.`
-);
