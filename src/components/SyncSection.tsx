@@ -1,11 +1,29 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  CheckCircle2, Cloud, CloudOff, Eye, EyeOff, Link2, RefreshCw, Unplug, XCircle,
+  AlertTriangle, CheckCircle2, Cloud, CloudOff, Eye, EyeOff, Info, Link2, RefreshCw,
+  Unplug, XCircle,
 } from 'lucide-react';
 import type { Dictionary } from '../lib/i18n';
-import type { SyncStatus } from '../types';
+import type { SyncScopeKey, SyncStatus } from '../types';
 import { getSyncAPI } from '../lib/sync';
 import { Button, Field, Modal, Panel, SectionTitle, cx, inputClass } from './ui';
+
+/**
+ * The scopes the user can toggle, in display order. `units` is listed last and
+ * is locked on whenever invoices are synced — a cloud invoice cannot exist
+ * without its unit (foreign key), so letting the two diverge would just
+ * produce invoices that never sync.
+ */
+const SCOPE_ROWS: Array<{
+  key: SyncScopeKey;
+  label: keyof Dictionary;
+  hint: keyof Dictionary;
+}> = [
+  { key: 'invoices', label: 'syncScopeInvoices', hint: 'syncScopeInvoicesHint' },
+  { key: 'clients', label: 'syncScopeClients', hint: 'syncScopeClientsHint' },
+  { key: 'settings', label: 'syncScopeSettings', hint: 'syncScopeSettingsHint' },
+  { key: 'units', label: 'syncScopeUnits', hint: 'syncScopeUnitsHint' },
+];
 
 interface SyncSectionProps {
   t: Dictionary;
@@ -22,6 +40,7 @@ export function SyncSection({ t, notify }: SyncSectionProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmingForget, setConfirmingForget] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [savingScopes, setSavingScopes] = useState(false);
   const [form, setForm] = useState({ projectUrl: '', publishableKey: '', databasePassword: '' });
 
   const refresh = useCallback(async () => {
@@ -103,6 +122,28 @@ export function SyncSection({ t, notify }: SyncSectionProps) {
     }
   };
 
+  const handleScope = async (key: SyncScopeKey, value: boolean) => {
+    if (!sync || savingScopes) return;
+    setSavingScopes(true);
+    // Optimistic: the checkbox should not lag behind the click.
+    setStatus((previous) =>
+      previous?.scopes
+        ? { ...previous, scopes: { ...previous.scopes, [key]: value } }
+        : previous
+    );
+    try {
+      const result = await sync.setScopes({ [key]: value });
+      setStatus(await sync.status());
+      if (result.ok) notify(t.syncScopesSaved);
+      else notify((result.errors ?? []).join(' ') || t.syncScopesFailed, 'error');
+    } catch (error) {
+      setStatus(await sync.status().catch(() => null));
+      notify(error?.message || t.syncScopesFailed, 'error');
+    } finally {
+      setSavingScopes(false);
+    }
+  };
+
   const handleSyncNow = async () => {
     if (!sync || syncing) return;
     setSyncing(true);
@@ -130,6 +171,14 @@ export function SyncSection({ t, notify }: SyncSectionProps) {
   };
 
   const projectName = status?.projectUrl ? status.projectUrl.replace(/^https?:\/\//, '') : null;
+
+  const scopeLabel = (key: string) => {
+    const row = SCOPE_ROWS.find((candidate) => candidate.key === key);
+    return row ? (t[row.label] as string) : key;
+  };
+
+  // Entities that failed in the last cycle, ignoring ones the user turned off.
+  const issues = Object.entries(status?.issues ?? {}).filter(([, message]) => !!message);
 
   return (
     <Panel className="p-5">
@@ -244,13 +293,84 @@ export function SyncSection({ t, notify }: SyncSectionProps) {
                 <span>
                   {t.syncLastSyncLabel} : {formatLastSync(status.lastSyncAt)}
                 </span>
-                {status.lastError && (
-                  <span className="inline-flex items-center gap-1 text-seal">
-                    <XCircle className="h-3 w-3" aria-hidden />
-                    {t.syncError} : {status.lastError}
-                  </span>
-                )}
               </div>
+
+              {/* Per-entity failures. Previously any completed cycle cleared
+                  the error, so a table that failed every time still looked
+                  healthy — this is what hid the invoice/settings breakage. */}
+              {issues.length > 0 && (
+                <div className="space-y-1.5 rounded-md border border-seal/30 bg-seal-tint/40 p-3">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-seal">
+                    <XCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {t.syncIssuesTitle}
+                  </p>
+                  <ul className="space-y-1 text-xs text-seal">
+                    {issues.map(([key, message]) => (
+                      <li key={key}>
+                        <span className="font-semibold">{scopeLabel(key)}</span> — {message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Things the engine fixed on its own, e.g. a local invoice
+                  renumbered because another device already used that number. */}
+              {status.notices?.length > 0 && (
+                <div className="space-y-1.5 rounded-md border border-rule bg-paper p-3">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-ink">
+                    <Info className="h-3.5 w-3.5 shrink-0 text-pine" aria-hidden />
+                    {t.syncNoticesTitle}
+                  </p>
+                  <ul className="space-y-1 text-xs text-slate">
+                    {status.notices.map((notice, index) => (
+                      <li key={index}>{notice}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* What gets shared */}
+          {status?.configured && status.scopes && (
+            <div className="space-y-3 rounded-md border border-rule bg-desk/40 p-4">
+              <div>
+                <p className="text-sm font-semibold text-ink">{t.syncScopesTitle}</p>
+                <p className="mt-0.5 text-xs text-mute">{t.syncScopesHint}</p>
+              </div>
+              <ul className="space-y-2">
+                {SCOPE_ROWS.map(({ key, label, hint }) => {
+                  const checked = !!status.scopes?.[key];
+                  // Units are implied by invoices; show it locked rather than
+                  // letting the user create a combination that cannot work.
+                  const locked = key === 'units' && !!status.scopes?.invoices;
+                  return (
+                    <li key={key}>
+                      <label
+                        className={cx(
+                          'flex items-start gap-3 rounded-md border border-transparent p-2 transition-colors',
+                          locked ? 'opacity-70' : 'cursor-pointer hover:border-rule hover:bg-paper'
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={locked || savingScopes}
+                          onChange={(event) => handleScope(key, event.target.checked)}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-pine disabled:opacity-60"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm text-ink">{t[label] as string}</span>
+                          <span className="block text-xs text-mute">
+                            {locked || checked ? (t[hint] as string) : t.syncScopeOff}
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
         </div>

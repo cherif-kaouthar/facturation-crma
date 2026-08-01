@@ -305,6 +305,10 @@ export function initSchemaAndMigrations() {
   ensureColumn('invoices', 'sync_dirty', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('settings', 'updated_at', 'TEXT');
   ensureColumn('settings', 'sync_dirty', 'INTEGER NOT NULL DEFAULT 0');
+  // Only set when the user explicitly moves the numbering (setNextSeq), so the
+  // choice is pushed to the cloud instead of being overwritten by the shared
+  // counter on the next reservation.
+  ensureColumn('counters', 'sync_dirty', 'INTEGER NOT NULL DEFAULT 0');
 
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_units_cloud    ON units(cloud_id)    WHERE cloud_id IS NOT NULL;
@@ -390,8 +394,16 @@ export const saveSettings = db.transaction((patch) => {
   const current = getSettings();
   const next = mergeDeep(current, patch);
   const ts = new Date().toISOString();
+  // Only touch sections that actually changed. Rewriting all five on every
+  // save marked them all dirty, so each save pushed the whole settings table
+  // (logo included) to the cloud and made every device re-pull it.
+  const stored = new Map(
+    db.prepare('SELECT key, value FROM settings').all().map((row) => [row.key, row.value])
+  );
   for (const key of Object.keys(DEFAULT_SETTINGS)) {
-    upsertSetting.run(key, JSON.stringify(next[key]), ts);
+    const value = JSON.stringify(next[key]);
+    if (stored.get(key) === value) continue;
+    upsertSetting.run(key, value, ts);
   }
   return next;
 });

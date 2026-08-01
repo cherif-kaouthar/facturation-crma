@@ -158,6 +158,16 @@ export interface SyncConnection {
   region: string | null;
 }
 
+/** Which kinds of data the user has chosen to share with the cloud. */
+export interface SyncScopes {
+  units: boolean;
+  clients: boolean;
+  invoices: boolean;
+  settings: boolean;
+}
+
+export type SyncScopeKey = keyof SyncScopes;
+
 export interface SyncStatus {
   enabled: boolean;
   configured: boolean;
@@ -165,8 +175,13 @@ export interface SyncStatus {
   projectRef: string | null;
   hasDbPassword: boolean;
   connection: SyncConnection | null;
+  scopes: SyncScopes | null;
   lastSyncAt: string | null;
   lastError: string | null;
+  /** Per-entity failure from the last cycle, e.g. { invoices: "envoi : …" }. */
+  issues: Partial<Record<SyncScopeKey | 'tombstones', string>>;
+  /** Non-fatal things the user should know, e.g. an invoice was renumbered. */
+  notices: string[];
 }
 
 export interface SyncSetupPayload {
@@ -185,7 +200,10 @@ export interface SyncResult {
   projectRef?: string | null;
   hasDbPassword?: boolean;
   connection?: SyncConnection | null;
+  scopes?: SyncScopes | null;
   newlyApplied?: Array<{ version: number; file: string }>;
   lastSyncAt?: string | null;
   lastError?: string | null;
+  issues?: Partial<Record<SyncScopeKey | 'tombstones', string>>;
+  notices?: string[];
 }

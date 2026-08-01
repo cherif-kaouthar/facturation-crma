@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { registerSyncIpc } from './sync/ipc.js';
-import { startSyncScheduler, runSyncCycle } from './sync/engine.js';
+import { startSyncScheduler, runSyncCycle, syncEvents } from './sync/engine.js';
 import { loadCredentials } from './sync/credentials.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -179,6 +179,15 @@ async function createWindow() {
 /* ------------------------------------------------------------------ */
 app.whenReady().then(() => {
   registerSyncIpc();
+
+  // Tell the renderer when a cycle actually brought data down, otherwise
+  // pulled changes sit invisible in SQLite until the user happens to navigate.
+  syncEvents.on('changed', (payload) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('sync:changed', payload);
+    }
+  });
+
   startSyncScheduler();
   const creds = loadCredentials();
   if (creds?.enabled) runSyncCycle();
