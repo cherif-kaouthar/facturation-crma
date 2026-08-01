@@ -7,6 +7,7 @@ import type { Dictionary } from '../lib/i18n';
 import { money } from '../lib/format';
 import { api } from '../lib/api';
 import { BrandLogo } from './Brand';
+import { SyncSection } from './SyncSection';
 import { Button, Field, Modal, Panel, SectionTitle, cx, inputClass } from './ui';
 import type { CustomField } from '../types';
 
@@ -332,6 +333,8 @@ export function SettingsPage({
         </h1>
         <p className="mt-1 text-sm text-slate">{t.settingsSubtitle}</p>
       </header>
+
+      <SyncSection t={t} notify={notify} />
 
       <LogoSection settings={draft} t={t} onChange={setLogo} notify={notify} />
 

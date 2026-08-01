@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase } from './sqlite.js';
+import { applySchema } from './schema.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -163,109 +164,8 @@ export const db = new DatabaseManager(DB_FILE);
 /* Schema & Migrations                                                 */
 /* ------------------------------------------------------------------ */
 
-function ensureColumn(table, column, definition) {
-  try {
-    const pragma = db.prepare(`PRAGMA table_info('${table}')`).all();
-    const exists = pragma.some((col) => col.name === column);
-    if (!exists) {
-      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-    }
-  } catch (err) {
-    console.error(`Failed to ensure column ${column} on ${table}:`, err);
-  }
-}
-
 export function initSchemaAndMigrations() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS units (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT    NOT NULL,
-      address     TEXT    NOT NULL DEFAULT '',
-      archived    INTEGER NOT NULL DEFAULT 0,
-      created_at  TEXT    NOT NULL,
-      updated_at  TEXT    NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS clients (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT    NOT NULL,
-      type        TEXT    NOT NULL DEFAULT 'company',
-      location    TEXT    NOT NULL DEFAULT '',
-      nif         TEXT    NOT NULL DEFAULT '',
-      art         TEXT    NOT NULL DEFAULT '',
-      phone       TEXT    NOT NULL DEFAULT '',
-      email       TEXT    NOT NULL DEFAULT '',
-      archived    INTEGER NOT NULL DEFAULT 0,
-      created_at  TEXT    NOT NULL,
-      updated_at  TEXT    NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS invoices (
-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
-      unit_id         INTEGER NOT NULL REFERENCES units(id) ON DELETE RESTRICT,
-      client_id       INTEGER REFERENCES clients(id) ON DELETE SET NULL,
-      client_name     TEXT    NOT NULL DEFAULT '',
-      client_type     TEXT    NOT NULL DEFAULT 'company',
-      client_location TEXT    NOT NULL DEFAULT '',
-      client_nif      TEXT    NOT NULL DEFAULT '',
-      client_art      TEXT    NOT NULL DEFAULT '',
-      client_phone    TEXT    NOT NULL DEFAULT '',
-      seq             INTEGER NOT NULL,
-      number          TEXT    NOT NULL,
-      year            INTEGER NOT NULL,
-      date            TEXT    NOT NULL,
-      notes           TEXT    NOT NULL DEFAULT '',
-      tva_rate        REAL    NOT NULL DEFAULT 0.19,
-      page_orientation TEXT   NOT NULL DEFAULT 'portrait',
-      total_nette     REAL    NOT NULL DEFAULT 0,
-      total_tva       REAL    NOT NULL DEFAULT 0,
-      total_fga       REAL    NOT NULL DEFAULT 0,
-      total_timbre    REAL    NOT NULL DEFAULT 0,
-      total_amount    REAL    NOT NULL DEFAULT 0,
-      created_at      TEXT    NOT NULL,
-      updated_at      TEXT    NOT NULL,
-      UNIQUE (year, seq)
-    );
-
-    CREATE TABLE IF NOT EXISTS invoice_lines (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-      position   INTEGER NOT NULL,
-      police     TEXT    NOT NULL DEFAULT '',
-      echeance   TEXT,
-      nette      REAL    NOT NULL DEFAULT 0,
-      fga        REAL    NOT NULL DEFAULT 0,
-      timbre     REAL    NOT NULL DEFAULT 0,
-      obs        TEXT    NOT NULL DEFAULT ''
-    );
-
-    CREATE TABLE IF NOT EXISTS counters (
-      year     INTEGER PRIMARY KEY,
-      next_seq INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS settings (
-      key   TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_invoices_unit ON invoices(unit_id);
-    CREATE INDEX IF NOT EXISTS idx_invoices_year ON invoices(year);
-    CREATE INDEX IF NOT EXISTS idx_lines_invoice  ON invoice_lines(invoice_id);
-  `);
-
-  ensureColumn('invoices', 'page_orientation', "TEXT NOT NULL DEFAULT 'portrait'");
-  ensureColumn('invoices', 'notes', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn('invoices', 'tva_rate', "REAL NOT NULL DEFAULT 0.19");
-  ensureColumn('invoices', 'client_id', "INTEGER REFERENCES clients(id) ON DELETE SET NULL");
-  ensureColumn('invoices', 'client_name', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn('invoices', 'client_type', "TEXT NOT NULL DEFAULT 'company'");
-  ensureColumn('invoices', 'client_location', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn('invoices', 'client_nif', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn('invoices', 'client_art', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn('invoices', 'client_phone', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn('units', 'address', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn('units', 'archived', "INTEGER NOT NULL DEFAULT 0");
+  applySchema(db);
 }
 
 initSchemaAndMigrations();
@@ -336,15 +236,39 @@ export function getSettings() {
 }
 
 const upsertSetting = db.prepare(
-  `INSERT INTO settings (key, value) VALUES (?, ?)
-   ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  `INSERT INTO settings (key, value, updated_at, sync_dirty)
+   VALUES (?, ?, ?, 1)
+   ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, sync_dirty = 1`
 );
 
 export const saveSettings = db.transaction((patch) => {
   const current = getSettings();
   const next = mergeDeep(current, patch);
+  const ts = new Date().toISOString();
+  // Only touch sections that actually changed. Rewriting all five on every
+  // save marked them all dirty, so each save pushed the whole settings table
+  // (logo included) to the cloud and made every device re-pull it.
+  const stored = new Map(
+    db.prepare('SELECT key, value FROM settings').all().map((row) => [row.key, row.value])
+  );
   for (const key of Object.keys(DEFAULT_SETTINGS)) {
-    upsertSetting.run(key, JSON.stringify(next[key]));
+    const value = JSON.stringify(next[key]);
+    if (stored.get(key) === value) continue;
+    upsertSetting.run(key, value, ts);
   }
   return next;
 });
+
+/**
+ * Write a single settings key without marking it dirty — used by the sync
+ * engine to apply values pulled from the cloud without pushing them back.
+ */
+export function setSettingRaw(key, value, updatedAt) {
+  upsertSettingRaw.run(String(value), updatedAt, key);
+}
+
+const upsertSettingRaw = db.prepare(
+  `INSERT INTO settings (key, value, updated_at, sync_dirty)
+   VALUES (?, ?, ?, 0)
+   ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, sync_dirty = 0`
+);

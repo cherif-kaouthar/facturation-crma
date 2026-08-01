@@ -146,3 +146,64 @@ export interface Stats {
   latest: { reference: string; date: string } | null;
   next: { year: number; seq: number; number: string };
 }
+
+/* ------------------------------------------------------------------ */
+/* Cloud sync                                                          */
+/* ------------------------------------------------------------------ */
+
+export interface SyncConnection {
+  /** How this device reached the database: direct IPv6 endpoint or shared pooler. */
+  method: 'direct' | 'pooler';
+  /** Region used by the pooler, e.g. "eu-central-1". */
+  region: string | null;
+}
+
+/** Which kinds of data the user has chosen to share with the cloud. */
+export interface SyncScopes {
+  units: boolean;
+  clients: boolean;
+  invoices: boolean;
+  settings: boolean;
+}
+
+export type SyncScopeKey = keyof SyncScopes;
+
+export interface SyncStatus {
+  enabled: boolean;
+  configured: boolean;
+  projectUrl: string | null;
+  projectRef: string | null;
+  hasDbPassword: boolean;
+  connection: SyncConnection | null;
+  scopes: SyncScopes | null;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  /** Per-entity failure from the last cycle, e.g. { invoices: "envoi : …" }. */
+  issues: Partial<Record<SyncScopeKey | 'tombstones', string>>;
+  /** Non-fatal things the user should know, e.g. an invoice was renumbered. */
+  notices: string[];
+}
+
+export interface SyncSetupPayload {
+  projectUrl: string;
+  publishableKey: string;
+  databasePassword: string;
+}
+
+export interface SyncResult {
+  ok: boolean;
+  errors?: string[];
+  error?: string | null;
+  enabled?: boolean;
+  configured?: boolean;
+  projectUrl?: string | null;
+  projectRef?: string | null;
+  hasDbPassword?: boolean;
+  connection?: SyncConnection | null;
+  scopes?: SyncScopes | null;
+  newlyApplied?: Array<{ version: number; file: string }>;
+  lastSyncAt?: string | null;
+  lastError?: string | null;
+  issues?: Partial<Record<SyncScopeKey | 'tombstones', string>>;
+  notices?: string[];
+}

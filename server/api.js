@@ -7,6 +7,7 @@ import { getSettings, saveSettings, DEFAULT_SETTINGS, db, formatDateStamp } from
 import { openDatabase } from './sqlite.js';
 import * as repo from './repo.js';
 import { ApiError } from './repo.js';
+import { notifyLocalChange } from './changes.js';
 
 const SQLITE_HEADER = Buffer.from('SQLite format 3\0', 'utf8');
 
@@ -77,6 +78,16 @@ export function createApi() {
 
   // Logos arrive as data: URLs, so the JSON body can legitimately be large.
   api.use(express.json({ limit: '6mb' }));
+
+  // Tell the sync engine as soon as this device writes something, so the push
+  // happens within a second instead of waiting for the next poll.
+  api.use((req, res, next) => {
+    if (req.method === 'GET' || req.method === 'HEAD') return next();
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) notifyLocalChange(req.path);
+    });
+    next();
+  });
 
   api.get('/health', handle(() => ({ ok: true, driver: 'sqlite' })));
 
@@ -232,7 +243,7 @@ export function createApi() {
     const csv = repo.exportCsv(req.query);
     const stamp = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="factures-crma-${stamp}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="factures-${stamp}.csv"`);
     res.send(csv);
   }));
 

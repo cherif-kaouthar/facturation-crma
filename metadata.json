@@ -1,6 +1,6 @@
 {
   "name": "Facturation",
-  "description": "Gestion des factures d'assurance CRMA pour LAITERIE FROMAGERIE LFB",
+  "description": "Gestion des factures d'assurance pour LAITERIE FROMAGERIE LFB",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
