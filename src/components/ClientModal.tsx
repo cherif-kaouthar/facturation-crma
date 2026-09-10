@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Building2, User } from 'lucide-react';
-import type { Client, ClientType, Language } from '../types';
+import type { Client, ClientType } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { Button, Field, inputClass, Modal } from './ui';
 
@@ -8,7 +8,6 @@ interface ClientModalProps {
   open: boolean;
   client?: Client | null;
   busy: boolean;
-  lang: Language;
   t: Dictionary;
   onClose: () => void;
   onSubmit: (data: {

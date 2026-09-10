@@ -1,6 +1,6 @@
 import React from 'react';
-import { FileText, Plus, Settings as SettingsIcon, Users } from 'lucide-react';
-import type { Language, Settings, Unit } from '../types';
+import { BarChart3, FileText, Plus, Settings as SettingsIcon, Users } from 'lucide-react';
+import type { Settings, Unit } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { BrandLogo } from './Brand';
 import { cx } from './ui';
@@ -9,14 +9,13 @@ interface AppHeaderProps {
   settings: Settings;
   units: Unit[];
   selectedUnitId: number | 'all';
-  currentViewName: 'ledger' | 'clients' | 'settings' | 'invoice' | 'editor';
-  lang: Language;
+  currentViewName: 'ledger' | 'clients' | 'stats' | 'settings' | 'invoice' | 'editor';
   t: Dictionary;
   showUnitBar: boolean;
   onSelectUnit: (value: number | 'all') => void;
-  onChangeLanguage: (lang: Language) => void;
   onOpenLedger: () => void;
   onOpenClients: () => void;
+  onOpenStats: () => void;
   onOpenSettings: () => void;
   onAddUnit: () => void;
   onGoHome: () => void;
@@ -27,13 +26,12 @@ export function AppHeader({
   units,
   selectedUnitId,
   currentViewName,
-  lang,
   t,
   showUnitBar,
   onSelectUnit,
-  onChangeLanguage,
   onOpenLedger,
   onOpenClients,
+  onOpenStats,
   onOpenSettings,
   onAddUnit,
   onGoHome,
@@ -91,28 +89,19 @@ export function AppHeader({
               <span className="hidden sm:inline">{t.clients}</span>
             </button>
 
-            {/* Language switch */}
-            <div
-              role="group"
-              aria-label={t.language}
-              className="flex items-center gap-0.5 rounded-md bg-black/20 p-0.5"
+            <button
+              type="button"
+              onClick={onOpenStats}
+              className={cx(
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors',
+                currentViewName === 'stats'
+                  ? 'bg-white text-pine'
+                  : 'text-white/80 hover:bg-black/20 hover:text-white'
+              )}
             >
-              {(['fr', 'ar'] as const).map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => onChangeLanguage(code)}
-                  aria-pressed={lang === code}
-                  className={cx(
-                    'rounded px-2.5 py-1 text-xs font-semibold transition-colors',
-                    code === 'ar' && 'font-arabic',
-                    lang === code ? 'bg-white text-pine' : 'text-white/70 hover:text-white'
-                  )}
-                >
-                  {code === 'fr' ? 'FR' : 'ع'}
-                </button>
-              ))}
-            </div>
+              <BarChart3 className="h-3.5 w-3.5" aria-hidden />
+              <span className="hidden sm:inline">{t.statistics}</span>
+            </button>
 
             <button
               type="button"

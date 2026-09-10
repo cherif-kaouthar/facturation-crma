@@ -29,14 +29,6 @@
   --font-narrow: "Archivo Narrow", "Archivo", system-ui, sans-serif;
   --font-doc: "Source Serif 4", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  /* Nothing here is bundled or webfont-loaded, so every name must be one the
-     OS can actually supply. Cairo / Noto Naskh are honoured when installed;
-     after them come faces that ship with Windows, macOS and Linux, because
-     the generic `serif` fallback lands on Times New Roman, whose Arabic is
-     poor and inconsistently shaped. */
-  --font-arabic: "Cairo", "Noto Sans Arabic", "Segoe UI", Tahoma, "Geeza Pro", sans-serif;
-  --font-arabic-doc: "Noto Naskh Arabic", "Traditional Arabic", "Geeza Pro",
-    "Segoe UI", Tahoma, serif;
 }
 
 @layer base {
@@ -49,11 +41,6 @@
     background-color: var(--color-desk);
     color: var(--color-ink);
     font-family: var(--font-display);
-  }
-
-  /* Arabic swaps the whole UI face; the document keeps its own Naskh. */
-  [dir="rtl"] body {
-    font-family: var(--font-arabic);
   }
 
   /* One visible focus treatment for every interactive element. */
@@ -96,45 +83,6 @@
 
 .imprint-doc {
   font-size: 1.15em;
-}
-
-/* ------------------------------------------------------------------ *
- * Arabic typography
- *
- * The sheet picks its face once on the root element, but the document then
- * applies font-display, font-narrow and font-mono to individual headings,
- * labels and cells. Those stacks contain no Arabic glyphs, so Arabic inside
- * them escaped the Naskh face and fell through to whatever the OS chose
- * last — which is why the invoice looked like several different fonts.
- *
- * Re-point each face at an Arabic-capable stack while the page is RTL.
- * Fallback is per-glyph, so the mono stack keeps its tabular Latin digits
- * (ar-DZ formats money and dates in Western numerals) and only borrows the
- * Arabic face for Arabic letters — column alignment is preserved.
- * ------------------------------------------------------------------ */
-[dir="rtl"] {
-  --font-display: var(--font-arabic);
-  --font-narrow: var(--font-arabic);
-  --font-doc: var(--font-arabic-doc);
-  --font-mono: "IBM Plex Mono", ui-monospace, "Noto Naskh Arabic", "Segoe UI",
-    Tahoma, monospace;
-}
-
-/* Arabic is a cursive script: letter-spacing severs the joins between
-   letters and breaks a word into loose, unreadable shapes. The document
-   leans on tracking-* utilities for its Latin headings and table headers,
-   so cancel them wherever the sheet is set in Arabic. */
-[dir="rtl"] .sheet,
-[dir="rtl"] .sheet * {
-  letter-spacing: normal;
-}
-
-/* Arabic carries marks above and below the baseline. Scoped to cells: the
-   table sets no explicit leading, and the surrounding blocks do, so this
-   gains headroom at 10px without disturbing the A4 pagination. */
-[dir="rtl"] .sheet th,
-[dir="rtl"] .sheet td {
-  line-height: 1.55;
 }
 
 /* Ledger rows: the hairline lives on the row so the sticky head stays clean. */

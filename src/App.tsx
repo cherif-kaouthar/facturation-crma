@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Building2, Plus } from 'lucide-react';
-import type { Client, ClientType, Invoice, InvoiceDraft, Language, Settings, Stats, Unit } from './types';
+import type { Client, ClientType, Invoice, InvoiceDraft, NextNumber, Settings, Stats, Unit } from './types';
 import { api, ApiError } from './lib/api';
 import { getTranslation } from './lib/i18n';
 import { getSyncAPI } from './lib/sync';
@@ -11,12 +11,14 @@ import { ClientModal } from './components/ClientModal';
 import { InvoiceDetail } from './components/InvoiceDetail';
 import { InvoiceEditor } from './components/InvoiceEditor';
 import { SettingsPage } from './components/SettingsPage';
+import { StatisticsPage } from './components/StatisticsPage';
 import { UnitModal } from './components/UnitModal';
 import { Button, EmptyState, Modal, Spinner, Toaster, type ToastMessage } from './components/ui';
 
 type View =
   | { name: 'ledger' }
   | { name: 'clients' }
+  | { name: 'stats' }
   | { name: 'invoice'; id: number }
   | { name: 'editor'; id: number | null }
   | { name: 'settings' };
@@ -30,7 +32,8 @@ export default function App() {
   const [clients, setClients] = useState<Client[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [nextNumber, setNextNumber] = useState<{ year: number; seq: number; number: string } | null>(null);
+  const [nextNumber, setNextNumber] = useState<NextNumber | null>(null);
+  const [nextNumbers, setNextNumbers] = useState<NextNumber[]>([]);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
 
   const [booting, setBooting] = useState(true);
@@ -49,8 +52,7 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const [lang, setLang] = useState<Language>('fr');
-  const t = getTranslation(lang);
+  const t = getTranslation();
 
   /* ---------------- Modals ---------------- */
   const [unitModal, setUnitModal] = useState<{ open: boolean; unit: Unit | null }>({ open: false, unit: null });
@@ -89,12 +91,6 @@ export default function App() {
     [notify]
   );
 
-  /* ---------------- Language & direction ---------------- */
-  useEffect(() => {
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-    document.documentElement.lang = lang;
-  }, [lang]);
-
   /* ---------------- Window title (Electron title bar) ---------------- */
   useEffect(() => {
     const companyName = settings?.company?.name?.trim();
@@ -115,7 +111,6 @@ export default function App() {
         setSettings(loadedSettings);
         setUnits(loadedUnits);
         setClients(loadedClients);
-        setLang(loadedSettings.app.language === 'ar' ? 'ar' : 'fr');
         setBootError('');
       } catch (error) {
         if (!cancelled) {
@@ -147,15 +142,17 @@ export default function App() {
   const refreshLedger = useCallback(async () => {
     setListLoading(true);
     try {
-      const [list, loadedStats, next, loadedClients] = await Promise.all([
+      const [list, loadedStats, next, loadedNumbers, loadedClients] = await Promise.all([
         api.listInvoices({ unitId: scopeId, q: debouncedSearch.trim() || undefined }),
         api.getStats(scopeId),
         api.nextNumber(),
+        api.nextNumbers(),
         api.listClients(),
       ]);
       setInvoices(list);
       setStats(loadedStats);
       setNextNumber(next);
+      setNextNumbers(loadedNumbers);
       setClients(loadedClients);
     } catch (error) {
       reportError(error);
@@ -199,11 +196,12 @@ export default function App() {
     const unsubscribe = sync.onChanged(() => {
       (async () => {
         try {
-          const [list, loadedStats, next, loadedClients, loadedUnits, loadedSettings] =
+          const [list, loadedStats, next, loadedNumbers, loadedClients, loadedUnits, loadedSettings] =
             await Promise.all([
               api.listInvoices({ unitId: scopeId, q: debouncedSearch.trim() || undefined }),
               api.getStats(scopeId),
               api.nextNumber(),
+              api.nextNumbers(),
               api.listClients(),
               api.listUnits(),
               api.getSettings(),
@@ -212,6 +210,7 @@ export default function App() {
           setInvoices(list);
           setStats(loadedStats);
           setNextNumber(next);
+          setNextNumbers(loadedNumbers);
           setClients(loadedClients);
           setUnits(loadedUnits);
           setSettings(loadedSettings);
@@ -450,8 +449,6 @@ export default function App() {
       try {
         const saved = await api.saveSettings(patch);
         setSettings(saved);
-        // A language stored in settings should take effect straight away.
-        if (patch.app?.language) setLang(patch.app.language);
         notify(t.settingsSaved);
         await refreshLedger();
       } catch (error) {
@@ -486,23 +483,15 @@ export default function App() {
         const result = await api.setNextSeq(year, nextSeq);
         setNextNumber(result);
         setStats((previous) => (previous ? { ...previous, next: result } : previous));
+        setNextNumbers((previous) =>
+          [...previous.filter((item) => item.year !== year), result].sort((a, b) => a.year - b.year)
+        );
         notify(t.numberingUpdated(`${result.number}/${result.year}`));
       } catch (error) {
         reportError(error);
       }
     },
     [notify, t, reportError]
-  );
-
-  /* ---------------- Language ---------------- */
-  const changeLanguage = useCallback(
-    (next: Language) => {
-      setLang(next);
-      api.saveSettings({ app: { language: next } }).catch(() => {
-        /* the UI already switched; persisting the preference is best-effort */
-      });
-    },
-    []
   );
 
   /* ---------------- Render ---------------- */
@@ -547,13 +536,12 @@ export default function App() {
         units={units}
         selectedUnitId={unitScope}
         currentViewName={view.name}
-        lang={lang}
         t={t}
         showUnitBar={view.name === 'ledger'}
         onSelectUnit={setUnitScope}
-        onChangeLanguage={changeLanguage}
         onOpenLedger={() => setView({ name: 'ledger' })}
         onOpenClients={() => setView({ name: 'clients' })}
+        onOpenStats={() => setView({ name: 'stats' })}
         onOpenSettings={() => setView({ name: 'settings' })}
         onAddUnit={() => setUnitModal({ open: true, unit: null })}
         onGoHome={() => setView({ name: 'ledger' })}
@@ -585,7 +573,6 @@ export default function App() {
               invoices={invoices}
               stats={stats}
               settings={settings}
-              lang={lang}
               t={t}
               loading={listLoading}
               search={search}
@@ -601,7 +588,6 @@ export default function App() {
         {view.name === 'clients' && (
           <ClientsPage
             clients={clients}
-            lang={lang}
             t={t}
             onAddClient={() => setClientModal({ open: true, client: null })}
             onEditClient={(client) => setClientModal({ open: true, client })}
@@ -617,11 +603,12 @@ export default function App() {
           />
         )}
 
+        {view.name === 'stats' && <StatisticsPage settings={settings} t={t} />}
+
         {view.name === 'invoice' && activeInvoice && (
           <InvoiceDetail
             invoice={activeInvoice}
             settings={settings}
-            lang={lang}
             t={t}
             busy={saving}
             onBack={() => setView({ name: 'ledger' })}
@@ -643,7 +630,6 @@ export default function App() {
             }
             nextNumber={nextNumber?.number ?? ''}
             settings={settings}
-            lang={lang}
             t={t}
             saving={saving}
             onSave={saveInvoice}
@@ -659,10 +645,9 @@ export default function App() {
             key={settingsVersion}
             settings={settings}
             units={units}
-            lang={lang}
             t={t}
             saving={saving}
-            nextNumber={nextNumber}
+            nextNumbers={nextNumbers}
             onSave={saveSettings}
             onReset={resetSettings}
             onCreateUnit={() => setUnitModal({ open: true, unit: null })}
@@ -688,7 +673,6 @@ export default function App() {
         open={clientModal.open}
         client={clientModal.client}
         busy={saving}
-        lang={lang}
         t={t}
         onClose={() => setClientModal({ open: false, client: null })}
         onSubmit={submitClient}

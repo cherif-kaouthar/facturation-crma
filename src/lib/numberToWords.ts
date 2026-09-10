@@ -1,6 +1,6 @@
 /**
  * Spells monetary amounts for the "Arrêté la présente facture à la somme de"
- * line, in French and Arabic, for Algerian dinars and centimes.
+ * line, in French, for Algerian dinars and centimes.
  */
 import { splitAmount } from '@/shared/money';
 
@@ -90,79 +90,6 @@ export function numberToWordsFr(amount: number): string {
   return result;
 }
 
-/* ------------------------------------------------------------------ */
-/* Arabic                                                              */
-/* ------------------------------------------------------------------ */
-
-const AR_UNITS = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
-const AR_TEENS = [
-  'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر',
-  'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر',
-];
-const AR_TENS = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
-const AR_HUNDREDS = [
-  '', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة',
-  'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة',
-];
-
-/** Join Arabic number words with the connecting waw. */
-const arJoin = (parts: string[]) => parts.filter(Boolean).join(' و');
-
-function arUnder100(n: number): string {
-  if (n === 0) return '';
-  if (n < 10) return AR_UNITS[n];
-  if (n < 20) return AR_TEENS[n - 10];
-  const tens = Math.floor(n / 10);
-  const unit = n % 10;
-  // Arabic reads the unit before the ten: "خمسة وعشرون" — five and twenty.
-  return unit === 0 ? AR_TENS[tens] : arJoin([AR_UNITS[unit], AR_TENS[tens]]);
-}
-
-function arUnder1000(n: number): string {
-  const hundreds = Math.floor(n / 100);
-  const rest = n % 100;
-  return arJoin([AR_HUNDREDS[hundreds], arUnder100(rest)]);
-}
-
-/** Arabic pluralises by count band: 1, 2, 3–10, then 11+ back to singular. */
-function arCounted(count: number, forms: [string, string, string, string]): string {
-  const [one, two, few, many] = forms;
-  if (count === 1) return one;
-  if (count === 2) return two;
-  if (count <= 10) return `${arUnder1000(count)} ${few}`;
-  return `${arUnder1000(count)} ${many}`;
-}
-
-function arInteger(value: number): string {
-  if (value === 0) return 'صفر';
-
-  const parts: string[] = [];
-  const millions = Math.floor(value / 1_000_000);
-  const thousands = Math.floor((value % 1_000_000) / 1000);
-  const rest = value % 1000;
-
-  if (millions > 0) {
-    parts.push(arCounted(millions, ['مليون', 'مليونان', 'ملايين', 'مليوناً']));
-  }
-  if (thousands > 0) {
-    parts.push(arCounted(thousands, ['ألف', 'ألفان', 'آلاف', 'ألفاً']));
-  }
-  if (rest > 0) {
-    parts.push(arUnder1000(rest));
-  }
-
-  return arJoin(parts);
-}
-
-export function numberToWordsAr(amount: number): string {
-  const { dinars, centimes } = splitAmount(amount);
-  let result = `${arInteger(dinars)} دينار جزائري`;
-  if (centimes > 0) {
-    result += ` و${arInteger(centimes)} سنتيم`;
-  }
-  return result;
-}
-
-export function amountInWords(amount: number, lang: 'fr' | 'ar'): string {
-  return lang === 'ar' ? numberToWordsAr(amount) : numberToWordsFr(amount);
+export function amountInWords(amount: number): string {
+  return numberToWordsFr(amount);
 }

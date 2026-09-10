@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle, ArchiveRestore, Archive, Building2, Database, Download, Hash, ImageUp, Plus, RotateCcw, Save, Trash2, Upload,
+  AlertTriangle, ArchiveRestore, Archive, Building2, Database, Download, ImageUp, Plus, RotateCcw, Save, Trash2, Upload,
 } from 'lucide-react';
-import type { Language, Settings, Unit } from '../types';
+import type { NextNumber, Settings, Unit } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { money } from '../lib/format';
 import { api } from '../lib/api';
@@ -17,7 +17,6 @@ const ACCEPTED = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/s
 interface SettingsPageProps {
   settings: Settings;
   units: Unit[];
-  lang: Language;
   t: Dictionary;
   saving: boolean;
   onSave: (patch: Partial<Settings>) => Promise<void> | void;
@@ -27,7 +26,7 @@ interface SettingsPageProps {
   onDeleteUnit: (unit: Unit) => void;
   onToggleArchive: (unit: Unit) => void;
   onSetNextSeq: (year: number, nextSeq: number) => void;
-  nextNumber: { year: number; seq: number; number: string } | null;
+  nextNumbers: NextNumber[];
   notify: (text: string, tone?: 'success' | 'error') => void;
 }
 
@@ -126,49 +125,60 @@ function LogoSection({
 
 function NumberingSection({
   t,
-  nextNumber,
+  nextNumbers,
   onSetNextSeq,
-}: Pick<SettingsPageProps, 't' | 'nextNumber' | 'onSetNextSeq'>) {
-  const [value, setValue] = useState<string>('');
-
-  if (!nextNumber) return null;
-  const current = `${nextNumber.number}/${nextNumber.year}`;
+}: Pick<SettingsPageProps, 't' | 'nextNumbers' | 'onSetNextSeq'>) {
+  const [values, setValues] = useState<Record<number, string>>({});
 
   return (
-    <div className="rounded-md border border-rule bg-desk/40 p-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <Field label={t.numbering} hint={t.numberingHint} htmlFor="numbering" className="min-w-[12rem] flex-1">
-          <div className="flex items-center gap-2">
-            <Hash className="h-4 w-4 shrink-0 text-mute" aria-hidden />
-            <input
-              id="numbering"
-              type="number"
-              min={1}
-              step={1}
-              value={value}
-              placeholder={String(nextNumber.seq)}
-              onChange={(event) => setValue(event.target.value)}
-              className={cx(inputClass, 'font-mono tnum')}
-            />
-          </div>
-        </Field>
-        <Button
-          type="button"
-          variant="secondary"
-          className="mb-6"
-          disabled={!value.trim()}
-          onClick={() => {
-            const parsed = Number(value);
-            if (Number.isInteger(parsed) && parsed > 0) {
-              onSetNextSeq(nextNumber.year, parsed);
-              setValue('');
-            }
-          }}
-        >
-          {t.applyNumbering}
-        </Button>
-      </div>
-      <p className="mt-1 font-mono text-xs tnum text-slate">→ {current}</p>
+    <div>
+      <SectionTitle>{t.numberings}</SectionTitle>
+      <p className="-mt-1 mb-3 text-xs text-mute">{t.numberingHint}</p>
+      {nextNumbers.length === 0 ? (
+        <p className="text-sm text-slate">{t.noInvoices}</p>
+      ) : (
+        <ul className="space-y-2">
+          {nextNumbers.map((item) => (
+            <li
+              key={item.year}
+              className="flex flex-wrap items-center gap-3 rounded-md border border-rule bg-desk/40 px-4 py-3"
+            >
+              <span className="font-narrow text-sm font-bold text-pine tnum">{item.year}</span>
+              <span className="font-mono text-sm font-semibold text-ink tnum">
+                → {item.number}/{item.year}
+              </span>
+              <div className="ms-auto flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={values[item.year] ?? ''}
+                  placeholder={String(item.seq)}
+                  onChange={(event) =>
+                    setValues((previous) => ({ ...previous, [item.year]: event.target.value }))
+                  }
+                  className={cx(inputClass, 'w-28 font-mono tnum')}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!(values[item.year] ?? '').trim()}
+                  onClick={() => {
+                    const parsed = Number(values[item.year]);
+                    if (Number.isInteger(parsed) && parsed > 0) {
+                      onSetNextSeq(item.year, parsed);
+                      setValues((previous) => ({ ...previous, [item.year]: '' }));
+                    }
+                  }}
+                >
+                  {t.applyNumbering}
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -281,7 +291,6 @@ function ObsPresetsEditor({
 export function SettingsPage({
   settings,
   units,
-  lang,
   t,
   saving,
   onSave,
@@ -291,7 +300,7 @@ export function SettingsPage({
   onDeleteUnit,
   onToggleArchive,
   onSetNextSeq,
-  nextNumber,
+  nextNumbers,
   notify,
 }: SettingsPageProps) {
   const [draft, setDraft] = useState<Settings>(settings);
@@ -380,9 +389,9 @@ export function SettingsPage({
                 step={0.5}
                 value={Math.round(draft.billing.tvaRate * 10000) / 100}
                 onChange={(event) => patchBilling('tvaRate', Number(event.target.value) / 100)}
-                className={cx(inputClass, 'font-mono tnum ltr:pr-8 rtl:pl-8')}
+                className={cx(inputClass, 'font-mono tnum pr-8')}
               />
-              <span className="pointer-events-none absolute top-1/2 -translate-y-1/2 font-mono text-sm text-mute ltr:right-3 rtl:left-3">
+              <span className="pointer-events-none absolute top-1/2 -translate-y-1/2 font-mono text-sm text-mute right-3">
                 %
               </span>
             </div>
@@ -467,7 +476,7 @@ export function SettingsPage({
         </div>
 
         <div className="mt-4">
-          <NumberingSection t={t} nextNumber={nextNumber} onSetNextSeq={onSetNextSeq} />
+          <NumberingSection t={t} nextNumbers={nextNumbers} onSetNextSeq={onSetNextSeq} />
         </div>
       </Panel>
 

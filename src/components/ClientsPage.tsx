@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Archive, ArchiveRestore, Building2, FileText, Mail, MapPin, Phone, Plus, Search, Trash2, User, Users } from 'lucide-react';
-import type { Client, ClientType, Language } from '../types';
+import type { Client, ClientType } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { money } from '../lib/format';
 import { Button, cx, EmptyState, inputClass, Panel } from './ui';
 
 interface ClientsPageProps {
   clients: Client[];
-  lang: Language;
   t: Dictionary;
   onAddClient: () => void;
   onEditClient: (client: Client) => void;

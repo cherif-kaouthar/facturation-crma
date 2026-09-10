@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Copy, Pencil, Printer, Trash2 } from 'lucide-react';
-import type { Invoice, Language, Settings } from '../types';
+import { ArrowLeft, Copy, Pencil, Printer, Trash2 } from 'lucide-react';
+import type { Invoice, Settings } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { InvoiceDocument } from './InvoiceDocument';
 import { Button, cx } from './ui';
@@ -8,7 +8,6 @@ import { Button, cx } from './ui';
 interface InvoiceDetailProps {
   invoice: Invoice;
   settings: Settings;
-  lang: Language;
   t: Dictionary;
   busy: boolean;
   onBack: () => void;
@@ -20,7 +19,6 @@ interface InvoiceDetailProps {
 export function InvoiceDetail({
   invoice: initialInvoice,
   settings,
-  lang,
   t,
   busy,
   onBack,
@@ -28,7 +26,6 @@ export function InvoiceDetail({
   onDuplicate,
   onDelete,
 }: InvoiceDetailProps) {
-  const BackIcon = lang === 'ar' ? ArrowRight : ArrowLeft;
   const [invoice, setInvoice] = useState(initialInvoice);
 
   useEffect(() => { setInvoice(initialInvoice); }, [initialInvoice]);
@@ -41,7 +38,7 @@ export function InvoiceDetail({
 
       {/* Action bar */}
       <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" icon={BackIcon} onClick={onBack}>
+        <Button variant="ghost" icon={ArrowLeft} onClick={onBack}>
           {t.backToLedger}
         </Button>
 
@@ -84,7 +81,7 @@ export function InvoiceDetail({
         </div>
       </div>
 
-      <InvoiceDocument invoice={invoice} settings={{ ...settings, billing: { ...settings.billing, pageOrientation: orientation } }} lang={lang} t={t} />
+      <InvoiceDocument invoice={invoice} settings={{ ...settings, billing: { ...settings.billing, pageOrientation: orientation } }} t={t} />
     </div>
   );
 }

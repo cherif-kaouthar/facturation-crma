@@ -1,5 +1,3 @@
-export type Language = 'fr' | 'ar';
-
 export type ClientType = 'company' | 'person';
 
 export interface Client {
@@ -133,7 +131,13 @@ export interface Settings {
   client: ClientProfile;
   billing: BillingConfig;
   branding: { logo: string };
-  app: { language: Language };
+  app: { language: string };
+}
+
+export interface NextNumber {
+  year: number;
+  seq: number;
+  number: string;
 }
 
 export interface Stats {
@@ -144,7 +148,29 @@ export interface Stats {
   yearBilled: number;
   year: number;
   latest: { reference: string; date: string } | null;
-  next: { year: number; seq: number; number: string };
+  next: NextNumber;
+}
+
+/* ------------------------------------------------------------------ */
+/* Yearly statistics                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface ServiceStat {
+  /** Stable identifier for React lists (not a fixed category). */
+  key: string;
+  /** The observation/service label; null when a line carried no label. */
+  label: string | null;
+  invoiceCount: number;
+  totalAmount: number;
+}
+
+export interface YearlyStats {
+  year: number;
+  /** Years the selector can offer, including the current and next one. */
+  years: number[];
+  totalInvoices: number;
+  totalAmount: number;
+  services: ServiceStat[];
 }
 
 /* ------------------------------------------------------------------ */

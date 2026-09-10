@@ -51,7 +51,7 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "appId": "com.lfb.facturation",
+    "appId": "com.facturation",
     "productName": "Facturation",
     "directories": {
       "output": "release"

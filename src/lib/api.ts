@@ -1,4 +1,4 @@
-import type { Client, Invoice, InvoiceDraft, Settings, Stats, Unit } from '../types';
+import type { Client, Invoice, InvoiceDraft, NextNumber, Settings, Stats, Unit, YearlyStats } from '../types';
 
 export class ApiError extends Error {
   status: number;
@@ -70,8 +70,8 @@ export const api = {
   listInvoices: (params: { unitId?: number; clientId?: number; year?: number; q?: string } = {}) =>
     request<Invoice[]>(`/invoices${query(params)}`),
   getInvoice: (id: number) => request<Invoice>(`/invoices/${id}`),
-  nextNumber: (year?: number) =>
-    request<{ year: number; seq: number; number: string }>(`/invoices/next${query({ year })}`),
+  nextNumber: (year?: number) => request<NextNumber>(`/invoices/next${query({ year })}`),
+  nextNumbers: () => request<NextNumber[]>(`/numbering/next`),
   createInvoice: (draft: InvoiceDraft) =>
     request<Invoice>('/invoices', { method: 'POST', body: body(draft) }),
   updateInvoice: (id: number, draft: InvoiceDraft) =>
@@ -82,12 +82,15 @@ export const api = {
     request<{ id: number }>(`/invoices/${id}`, { method: 'DELETE' }),
 
   setNextSeq: (year: number, nextSeq: number) =>
-    request<{ year: number; seq: number; number: string }>(`/numbering/${year}`, {
+    request<NextNumber>(`/numbering/${year}`, {
       method: 'PUT',
       body: body({ nextSeq }),
     }),
 
   getStats: (unitId?: number) => request<Stats>(`/stats${query({ unitId })}`),
+
+  getYearlyStats: (year: number, unitId?: number) =>
+    request<YearlyStats>(`/stats/yearly${query({ year, unitId })}`),
 
   exportCsvUrl: (params: { unitId?: number; clientId?: number; year?: number; q?: string } = {}) =>
     `/api/export.csv${query(params)}`,

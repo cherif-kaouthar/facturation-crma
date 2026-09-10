@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, FileDown, Plus, Save, Trash2, Upload, X } from 'lucide-react';
-import type { Client, ClientType, Invoice, InvoiceDraft, InvoiceLine, Language, Settings, Unit } from '../types';
+import type { Client, ClientType, Invoice, InvoiceDraft, InvoiceLine, Settings, Unit } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { computeLine, computeTotals, isVatExemptLine, money, percent, todayIso, toAmount } from '../lib/format';
 import { amountInWords } from '../lib/numberToWords';
@@ -13,7 +13,6 @@ interface InvoiceEditorProps {
   defaultUnitId: number;
   nextNumber: string;
   settings: Settings;
-  lang: Language;
   t: Dictionary;
   saving: boolean;
   onSave: (draft: InvoiceDraft) => void;
@@ -64,7 +63,7 @@ function AmountInput({
         onChange(toAmount(event.target.value));
       }}
       onBlur={() => setText(null)}
-      className={cx(inputClass, 'amount-input px-2 py-1.5 text-right font-mono tnum text-[13px] rtl:text-left')}
+      className={cx(inputClass, 'amount-input px-2 py-1.5 text-right font-mono tnum text-[13px]')}
     />
   );
 }
@@ -76,7 +75,6 @@ export function InvoiceEditor({
   defaultUnitId,
   nextNumber,
   settings,
-  lang,
   t,
   saving,
   onSave,
@@ -177,7 +175,7 @@ export function InvoiceEditor({
 
   const computed = useMemo(() => lines.map((line) => computeLine(line, tvaRate)), [lines, tvaRate]);
   const totals = useMemo(() => computeTotals(lines, tvaRate), [lines, tvaRate]);
-  const spelled = useMemo(() => amountInWords(totals.total, lang), [totals.total, lang]);
+  const spelled = useMemo(() => amountInWords(totals.total), [totals.total]);
 
   const patchLine = (id: string, patch: Partial<DraftLine>) =>
     setLines((previous) => previous.map((line) => (line.id === id ? { ...line, ...patch } : line)));
@@ -228,7 +226,7 @@ export function InvoiceEditor({
   }
   const [csvPreview, setCsvPreview] = useState<CsvRow[] | null>(null);
 
-  const csvTemplate = `Police,Échéance,Nette,FGA,Timbre,Observations\n10/2026,2026-01-15,12500.00,2500.00,40,Assurance incendie\n11/2026,2026-02-15,8300.50,1660.00,40,Assurance tous risques`;
+  const csvTemplate = `Police,Ã‰chÃ©ance,Nette,FGA,Timbre,Observations\n10/2026,2026-01-15,12500.00,2500.00,40,Assurance incendie\n11/2026,2026-02-15,8300.50,1660.00,40,Assurance tous risques`;
 
   function parseDate(raw: string): string {
     const s = raw.trim();
@@ -371,7 +369,7 @@ export function InvoiceEditor({
               <input
                 id="editor-tva"
                 type="text"
-                value={percent(tvaRate, lang)}
+                value={percent(tvaRate)}
                 readOnly
                 tabIndex={-1}
                 className={cx(inputClass, 'cursor-default bg-desk font-mono tnum text-slate')}
@@ -421,10 +419,10 @@ export function InvoiceEditor({
                             </div>
                             {(c.location || c.nif || c.phone || c.art) && (
                               <div className="text-[11px] text-slate flex flex-wrap gap-x-3 gap-y-0.5">
-                                {c.location && <span>📍 {c.location}</span>}
-                                {c.phone && <span>📞 {c.phone}</span>}
+                                {c.location && <span>ðŸ“ {c.location}</span>}
+                                {c.phone && <span>ðŸ“ž {c.phone}</span>}
                                 {c.nif && <span>NIF: {c.nif}</span>}
-                                {c.art && <span>N°Art: {c.art}</span>}
+                                {c.art && <span>NÂ°Art: {c.art}</span>}
                               </div>
                             )}
                           </button>
@@ -538,14 +536,14 @@ export function InvoiceEditor({
                 <thead>
                   <tr className="border-b border-rule bg-desk/60 font-narrow text-[10px] uppercase tracking-[0.1em] text-slate">
                     <th scope="col" className="w-8 px-2 py-2 font-semibold">#</th>
-                    <th scope="col" className="px-2 py-2 font-semibold ltr:text-left rtl:text-right">{t.police}</th>
-                    <th scope="col" className="px-2 py-2 font-semibold ltr:text-left rtl:text-right">{t.echeance}</th>
-                    <th scope="col" className="px-2 py-2 font-semibold ltr:text-right rtl:text-left">{t.nette}</th>
-                    <th scope="col" className="px-2 py-2 font-semibold ltr:text-right rtl:text-left">{t.tva}</th>
-                    <th scope="col" className="px-2 py-2 font-semibold ltr:text-right rtl:text-left">{t.fga}</th>
-                    <th scope="col" className="px-2 py-2 font-semibold ltr:text-right rtl:text-left">{t.timbre}</th>
-                    <th scope="col" className="px-2 py-2 font-semibold ltr:text-right rtl:text-left">{t.lineTotal}</th>
-                    <th scope="col" className="px-2 py-2 font-semibold ltr:text-left rtl:text-right">{t.observations}</th>
+                    <th scope="col" className="px-2 py-2 font-semibold text-left">{t.police}</th>
+                    <th scope="col" className="px-2 py-2 font-semibold text-left">{t.echeance}</th>
+                    <th scope="col" className="px-2 py-2 font-semibold text-right">{t.nette}</th>
+                    <th scope="col" className="px-2 py-2 font-semibold text-right">{t.tva}</th>
+                    <th scope="col" className="px-2 py-2 font-semibold text-right">{t.fga}</th>
+                    <th scope="col" className="px-2 py-2 font-semibold text-right">{t.timbre}</th>
+                    <th scope="col" className="px-2 py-2 font-semibold text-right">{t.lineTotal}</th>
+                    <th scope="col" className="px-2 py-2 font-semibold text-left">{t.observations}</th>
                     <th scope="col" className="w-16 px-2 py-2"><span className="sr-only">{t.removeLine}</span></th>
                   </tr>
                 </thead>
@@ -581,11 +579,11 @@ export function InvoiceEditor({
                           label={`${t.nette} ${index + 1}`}
                         />
                       </td>
-                      <td className="w-28 bg-desk/40 px-3 py-1.5 font-mono tnum text-[13px] text-slate ltr:text-right rtl:text-left">
+                      <td className="w-28 bg-desk/40 px-3 py-1.5 font-mono tnum text-[13px] text-slate text-right">
                         {money(computed[index].tva, currency)}
                         {isVatExemptLine(line) && (
                           <span className="block text-[10px] text-pine font-sans italic font-normal">
-                            Exonéré
+                            ExonÃ©rÃ©
                           </span>
                         )}
                       </td>
@@ -603,7 +601,7 @@ export function InvoiceEditor({
                           label={`${t.timbre} ${index + 1}`}
                         />
                       </td>
-                      <td className="w-32 bg-pine-tint/50 px-3 py-1.5 font-mono tnum text-[13px] font-semibold text-pine ltr:text-right rtl:text-left">
+                      <td className="w-32 bg-pine-tint/50 px-3 py-1.5 font-mono tnum text-[13px] font-semibold text-pine text-right">
                         {money(computed[index].total, currency)}
                       </td>
                       <td className="px-2 py-1.5">
@@ -643,14 +641,14 @@ export function InvoiceEditor({
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-rule bg-desk/70 font-mono tnum text-[13px] font-semibold text-ink">
-                    <td colSpan={3} className="px-3 py-2.5 font-narrow text-[10px] font-bold uppercase tracking-[0.12em] text-slate ltr:text-right rtl:text-left">
+                    <td colSpan={3} className="px-3 py-2.5 font-narrow text-[10px] font-bold uppercase tracking-[0.12em] text-slate text-right">
                       {t.grandTotal}
                     </td>
-                    <td className="px-3 py-2.5 ltr:text-right rtl:text-left">{money(totals.nette, currency)}</td>
-                    <td className="px-3 py-2.5 ltr:text-right rtl:text-left">{money(totals.tva, currency)}</td>
-                    <td className="px-3 py-2.5 ltr:text-right rtl:text-left">{money(totals.fga, currency)}</td>
-                    <td className="px-3 py-2.5 ltr:text-right rtl:text-left">{money(totals.timbre, currency)}</td>
-                    <td className="bg-pine px-3 py-2.5 text-white ltr:text-right rtl:text-left">
+                    <td className="px-3 py-2.5 text-right">{money(totals.nette, currency)}</td>
+                    <td className="px-3 py-2.5 text-right">{money(totals.tva, currency)}</td>
+                    <td className="px-3 py-2.5 text-right">{money(totals.fga, currency)}</td>
+                    <td className="px-3 py-2.5 text-right">{money(totals.timbre, currency)}</td>
+                    <td className="bg-pine px-3 py-2.5 text-white text-right">
                       {money(totals.total, currency)}
                     </td>
                     <td colSpan={2} />
@@ -666,16 +664,13 @@ export function InvoiceEditor({
             </div>
           </div>
 
-          {/* Amount in words — a live preview of the legal sentence on the sheet */}
+          {/* Amount in words â€” a live preview of the legal sentence on the sheet */}
           <div className="rounded-md border border-rule bg-desk/40 px-4 py-3.5">
             <p className="font-narrow text-[10px] font-semibold uppercase tracking-[0.12em] text-slate">
               {t.amountInWords}
             </p>
             <p
-              className={cx(
-                'mt-1.5 text-[15px] leading-relaxed text-ink',
-                lang === 'ar' ? 'font-arabic-doc' : 'font-doc italic'
-              )}
+              className="mt-1.5 text-[15px] leading-relaxed text-ink font-doc italic"
             >
               {spelled}
             </p>
@@ -736,8 +731,8 @@ export function InvoiceEditor({
                   >
                     {row.valid ? t.csvValid : t.csvInvalid}
                   </span>
-                  <span className="min-w-[6rem] truncate font-mono">{row.police || '—'}</span>
-                  <span className="font-mono tnum text-slate">{row.echeance || '—'}</span>
+                  <span className="min-w-[6rem] truncate font-mono">{row.police || 'â€”'}</span>
+                  <span className="font-mono tnum text-slate">{row.echeance || 'â€”'}</span>
                   <span className="ml-auto font-mono tnum font-semibold">
                     {money(row.nette + row.fga + row.timbre, currency)}
                   </span>
@@ -748,14 +743,14 @@ export function InvoiceEditor({
           {csvPreview && (
             <div className="mt-2 flex gap-3 text-xs text-mute">
               <span>{t.csvRowTotal(csvPreview.length)}</span>
-              <span className="text-pine">· {t.csvValidCount(csvPreview.filter((r) => r.valid).length)}</span>
+              <span className="text-pine">Â· {t.csvValidCount(csvPreview.filter((r) => r.valid).length)}</span>
             </div>
           )}
         </Modal>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-rule bg-desk/50 px-5 py-4">
           <p className="text-xs text-slate">
-            {selectedUnit ? `${selectedUnit.name}${selectedUnit.address ? ` — ${selectedUnit.address}` : ''}` : ''}
+            {selectedUnit ? `${selectedUnit.name}${selectedUnit.address ? ` â€” ${selectedUnit.address}` : ''}` : ''}
           </p>
           <div className="flex items-center gap-2">
             <Button type="button" variant="ghost" icon={X} onClick={onCancel} disabled={saving}>

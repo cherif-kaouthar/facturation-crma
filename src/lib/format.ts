@@ -1,5 +1,4 @@
 import { formatMoney } from '@/shared/money';
-import type { Language } from '../types';
 
 export { round2, toAmount, isVatExemptLine, computeLine, computeTotals, formatMoney } from '@/shared/money';
 
@@ -8,7 +7,7 @@ export function money(amount: number, currency = 'DA'): string {
 }
 
 /** Date formatted as DD/MM/YYYY for the printed sheet. */
-export function longDate(iso: string, _lang: Language): string {
+export function longDate(iso: string): string {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
   if (y && m && d) return `${d}/${m}/${y}`;
@@ -21,19 +20,19 @@ export function longDate(iso: string, _lang: Language): string {
 }
 
 /** Compact date for dense table cells. */
-export function shortDate(iso: string, lang: Language): string {
+export function shortDate(iso: string): string {
   if (!iso) return '—';
   const date = new Date(`${iso}T00:00:00`);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ', {
+  return date.toLocaleDateString('fr-DZ', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   });
 }
 
-export function percent(rate: number, lang: Language): string {
-  return new Intl.NumberFormat(lang === 'ar' ? 'ar-DZ' : 'fr-FR', {
+export function percent(rate: number): string {
+  return new Intl.NumberFormat('fr-FR', {
     style: 'percent',
     maximumFractionDigits: 2,
   }).format(rate);

@@ -250,6 +250,18 @@ export function peekNextNumber(year) {
   return { year, seq, number: formatNumber(seq, getSettings().billing.numberPadding) };
 }
 
+/**
+ * Next number for every calendar year that already holds at least one invoice,
+ * sorted oldest year first. Years without invoices are omitted.
+ */
+export function listNextNumbers() {
+  const years = db
+    .prepare('SELECT DISTINCT year FROM invoices ORDER BY year ASC')
+    .all()
+    .map((row) => row.year);
+  return years.map((year) => peekNextNumber(year));
+}
+
 /** Move the counter for a year. Refuses to rewind onto numbers already issued. */
 export function setNextSeq(year, nextSeq) {
   const y = Number(year);
@@ -578,6 +590,95 @@ export function deleteInvoice(id) {
   markDeleted('invoices', id);
   db.prepare('DELETE FROM invoices WHERE id = ?').run(id);
   return { id: Number(id) };
+}
+
+/* ------------------------------------------------------------------ */
+/* Yearly statistics                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Statistics for a single calendar year, computed exclusively from that
+ * year's invoices. Service types are never hardcoded: they are the distinct
+ * observations actually written on the year's invoice lines, so a service
+ * only appears once at least one invoice of the selected year uses it.
+ * Amounts are broken down per service by summing each line's computed total
+ * (nette + TVA + FGA + timbre); an invoice spanning several services
+ * contributes to each of them.
+ */
+export function getYearlyStats(year, unitId) {
+  const y = Number(year);
+  if (!Number.isInteger(y) || y < 2000 || y > 2100) {
+    throw new ApiError(400, 'Année invalide.');
+  }
+
+  const where = ['i.year = ?'];
+  const params = [y];
+  if (unitId !== undefined && unitId !== null && unitId !== '') {
+    where.push('i.unit_id = ?');
+    params.push(Number(unitId));
+  }
+
+  const invoices = db
+    .prepare(
+      `SELECT i.id, i.tva_rate, i.total_amount
+         FROM invoices i
+        WHERE ${where.join(' AND ')}`
+    )
+    .all(params);
+
+  const totalInvoices = invoices.length;
+  const totalAmount = round2(invoices.reduce((sum, inv) => sum + inv.total_amount, 0));
+
+  // Group the year's lines by their observation text.
+  const byObservation = new Map();
+  if (invoices.length > 0) {
+    const ids = invoices.map((inv) => inv.id);
+    const tvaByInvoice = new Map(invoices.map((inv) => [inv.id, inv.tva_rate]));
+    const lines = db
+      .prepare(
+        `SELECT invoice_id, nette, fga, timbre, obs
+           FROM invoice_lines
+          WHERE invoice_id IN (${ids.map(() => '?').join(',')})`
+      )
+      .all(...ids);
+    for (const line of lines) {
+      const obs = String(line.obs ?? '').trim();
+      const group = byObservation.get(obs) ?? { ids: new Set(), amount: 0 };
+      group.ids.add(line.invoice_id);
+      const tvaRate = tvaByInvoice.get(line.invoice_id) ?? 0;
+      group.amount += computeLine(line, tvaRate).total;
+      byObservation.set(obs, group);
+    }
+  }
+
+  const services = [...byObservation.entries()]
+    .map(([obs, group], index) => ({
+      key: `service-${index}`,
+      label: obs || null,
+      invoiceCount: group.ids.size,
+      totalAmount: round2(group.amount),
+    }))
+    .sort((a, b) => b.totalAmount - a.totalAmount || (a.label ?? '').localeCompare(b.label ?? ''));
+
+  // Years worth selecting: every year present in the data, plus the current
+  // and next calendar year so the operator can look ahead even when empty.
+  const availableYears = db
+    .prepare('SELECT DISTINCT year FROM invoices ORDER BY year ASC')
+    .all()
+    .map((row) => row.year);
+  const now = new Date().getFullYear();
+  for (const candidate of [now, now + 1]) {
+    if (!availableYears.includes(candidate)) availableYears.push(candidate);
+  }
+  availableYears.sort((a, b) => a - b);
+
+  return {
+    year: y,
+    years: availableYears,
+    totalInvoices,
+    totalAmount,
+    services,
+  };
 }
 
 /* ------------------------------------------------------------------ */

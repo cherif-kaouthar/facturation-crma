@@ -232,12 +232,16 @@ export function createApi() {
   api.delete('/invoices/:id', handle((req) => repo.deleteInvoice(id(req))));
 
   /* Numbering ------------------------------------------------------ */
+  api.get('/numbering/next', handle((req) => repo.listNextNumbers()));
   api.put('/numbering/:year', handle((req) =>
     repo.setNextSeq(req.params.year, req.body?.nextSeq)
   ));
 
   /* Stats & export ------------------------------------------------- */
   api.get('/stats', handle((req) => repo.getStats(req.query.unitId)));
+  api.get('/stats/yearly', handle((req) =>
+    repo.getYearlyStats(Number(req.query.year) || new Date().getFullYear(), req.query.unitId)
+  ));
 
   api.get('/export.csv', handle((req, res) => {
     const csv = repo.exportCsv(req.query);

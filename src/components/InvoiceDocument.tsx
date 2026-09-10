@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import type { Invoice, Language, Settings } from '../types';
+﻿import React, { useMemo } from 'react';
+import type { Invoice, Settings } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { computeLine, isVatExemptLine, longDate, money, percent } from '../lib/format';
 import { amountInWords } from '../lib/numberToWords';
@@ -9,16 +9,14 @@ import { Imprint, cx } from './ui';
 interface InvoiceDocumentProps {
   invoice: Invoice;
   settings: Settings;
-  lang: Language;
   t: Dictionary;
 }
 
 /**
- * The A4 sheet. It sets its own type — Source Serif for Latin, Naskh for
- * Arabic — so the document reads as a printed record rather than as part of
- * the tool that produced it.
+ * The A4 sheet. It sets its own type â€” Source Serif â€” so the document reads
+ * as a printed record rather than as part of the tool that produced it.
  */
-export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentProps) {
+export function InvoiceDocument({ invoice, settings, t }: InvoiceDocumentProps) {
   const { company, client, branding, billing } = settings;
   const currency = billing.currency;
 
@@ -27,9 +25,7 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
     [invoice]
   );
   const totals = invoice.totals;
-  const spelled = useMemo(() => amountInWords(totals.total, lang), [totals.total, lang]);
-
-  const docFont = lang === 'ar' ? 'font-arabic-doc' : 'font-doc';
+  const spelled = useMemo(() => amountInWords(totals.total), [totals.total]);
 
   const isLandscape = billing.pageOrientation === 'landscape';
 
@@ -38,7 +34,7 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
       className={cx(
         'sheet mx-auto w-full bg-paper text-ink shadow-lg border border-rule',
         isLandscape ? 'max-w-[297mm] px-6 py-6 sm:px-8 sm:py-8' : 'max-w-[210mm] px-8 py-10 sm:px-12 sm:py-14',
-        docFont
+        'font-doc'
       )}
     >
       {/* ---------------- Header ---------------- */}
@@ -69,7 +65,7 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
               {(company.tel || company.fax) && (
                 <div className="tnum pt-0.5">
                   {company.tel && `${t.tel} ${company.tel}`}
-                  {company.tel && company.fax && ' · '}
+                  {company.tel && company.fax && ' Â· '}
                   {company.fax && `${t.fax} ${company.fax}`}
                 </div>
               )}
@@ -85,13 +81,13 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
           </div>
         </div>
 
-        <div className="shrink-0 space-y-4 sm:ltr:text-right sm:rtl:text-left">
+        <div className="shrink-0 space-y-4 sm:text-right">
           <p className="text-xs text-slate">
             {t.issuedAt(company.city)}{' '}
-            <span className="font-mono tnum font-semibold text-ink">{longDate(invoice.date, lang)}</span>
+            <span className="font-mono tnum font-semibold text-ink">{longDate(invoice.date)}</span>
           </p>
 
-          <div className="min-w-[16rem] border-pine bg-pine-tint/60 px-4 py-3 ltr:border-l-3 ltr:text-left rtl:border-r-3 rtl:text-right">
+          <div className="min-w-[16rem] border-pine bg-pine-tint/60 px-4 py-3 border-l-3 text-left">
             <p className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-pine">
               {t.billedTo}
             </p>
@@ -102,7 +98,7 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
               <p className="text-xs text-slate">{invoice.clientLocation}</p>
             )}
             {invoice.clientPhone && (
-              <p className="text-xs text-slate">Tél : {invoice.clientPhone}</p>
+              <p className="text-xs text-slate">TÃ©l : {invoice.clientPhone}</p>
             )}
             {invoice.clientType === 'company' && (invoice.clientNif || invoice.clientArt) && (
               <div className="mt-1 space-y-0.5 font-mono text-[10px] text-slate">
@@ -137,28 +133,28 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
             <th scope="col" className="w-8 border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider">
               #
             </th>
-            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider ltr:text-left rtl:text-right">
+            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider text-left">
               {t.police}
             </th>
-            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider ltr:text-left rtl:text-right">
+            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider text-left">
               {t.echeance}
             </th>
-            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider ltr:text-right rtl:text-left">
+            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider text-right">
               {t.nette}
             </th>
-            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider ltr:text-right rtl:text-left">
-              {`${t.tva} ${percent(invoice.tvaRate, lang)}`}
+            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider text-right">
+              {`${t.tva} ${percent(invoice.tvaRate)}`}
             </th>
-            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider ltr:text-right rtl:text-left">
+            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider text-right">
               {t.fga}
             </th>
-            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider ltr:text-right rtl:text-left">
+            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider text-right">
               {t.timbre}
             </th>
-            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider ltr:text-right rtl:text-left">
+            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider text-right">
               {t.lineTotal}
             </th>
-            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider ltr:text-left rtl:text-right">
+            <th scope="col" className="border border-pine-dark px-2 py-2 font-display text-[9px] font-bold uppercase tracking-wider text-left">
               {t.observations}
             </th>
           </tr>
@@ -167,56 +163,56 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
           {lines.map((line, index) => (
             <tr key={line.id}>
               <td className="border border-rule px-2 py-1.5 text-center font-mono tnum text-slate">{index + 1}</td>
-              <td className="border border-rule px-2 py-1.5 font-mono font-semibold ltr:text-left rtl:text-right">
-                {line.police || '—'}
+              <td className="border border-rule px-2 py-1.5 font-mono font-semibold text-left">
+                {line.police || 'â€”'}
               </td>
-              <td className="border border-rule px-2 py-1.5 font-mono tnum text-slate ltr:text-left rtl:text-right">
-                {line.echeance ? longDate(line.echeance, lang) : '—'}
+              <td className="border border-rule px-2 py-1.5 font-mono tnum text-slate text-left">
+                {line.echeance ? longDate(line.echeance) : 'â€”'}
               </td>
-              <td className="border border-rule px-2 py-1.5 font-mono tnum ltr:text-right rtl:text-left">
+              <td className="border border-rule px-2 py-1.5 font-mono tnum text-right">
                 {money(line.nette, currency)}
               </td>
-              <td className="border border-rule px-2 py-1.5 font-mono tnum ltr:text-right rtl:text-left">
+              <td className="border border-rule px-2 py-1.5 font-mono tnum text-right">
                 {money(line.tva, currency)}
                 {isVatExemptLine(line) && (
                   <span className="block text-[8px] text-slate font-sans italic font-normal">
-                    Exonéré
+                    ExonÃ©rÃ©
                   </span>
                 )}
               </td>
-              <td className="border border-rule px-2 py-1.5 font-mono tnum ltr:text-right rtl:text-left">
+              <td className="border border-rule px-2 py-1.5 font-mono tnum text-right">
                 {money(line.fga, currency)}
               </td>
-              <td className="border border-rule px-2 py-1.5 font-mono tnum ltr:text-right rtl:text-left">
+              <td className="border border-rule px-2 py-1.5 font-mono tnum text-right">
                 {money(line.timbre, currency)}
               </td>
-              <td className="border border-rule px-2 py-1.5 font-mono tnum font-bold text-pine ltr:text-right rtl:text-left">
+              <td className="border border-rule px-2 py-1.5 font-mono tnum font-bold text-pine text-right">
                 {money(line.total, currency)}
               </td>
-              <td className="border border-rule px-2 py-1.5 italic text-slate ltr:text-left rtl:text-right">
-                {line.obs || '—'}
+              <td className="border border-rule px-2 py-1.5 italic text-slate text-left">
+                {line.obs || 'â€”'}
               </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="bg-desk font-bold">
-            <td colSpan={3} className="border border-ink px-2 py-2.5 font-display text-[9px] uppercase tracking-[0.12em] ltr:text-right rtl:text-left">
+            <td colSpan={3} className="border border-ink px-2 py-2.5 font-display text-[9px] uppercase tracking-[0.12em] text-right">
               {t.grandTotal}
             </td>
-            <td className="border border-ink px-2 py-2.5 font-mono tnum ltr:text-right rtl:text-left">
+            <td className="border border-ink px-2 py-2.5 font-mono tnum text-right">
               {money(totals.nette, currency)}
             </td>
-            <td className="border border-ink px-2 py-2.5 font-mono tnum ltr:text-right rtl:text-left">
+            <td className="border border-ink px-2 py-2.5 font-mono tnum text-right">
               {money(totals.tva, currency)}
             </td>
-            <td className="border border-ink px-2 py-2.5 font-mono tnum ltr:text-right rtl:text-left">
+            <td className="border border-ink px-2 py-2.5 font-mono tnum text-right">
               {money(totals.fga, currency)}
             </td>
-            <td className="border border-ink px-2 py-2.5 font-mono tnum ltr:text-right rtl:text-left">
+            <td className="border border-ink px-2 py-2.5 font-mono tnum text-right">
               {money(totals.timbre, currency)}
             </td>
-            <td colSpan={2} className="border border-ink bg-pine px-2 py-2.5 font-mono tnum text-[13px] text-white ltr:text-right rtl:text-left">
+            <td colSpan={2} className="border border-ink bg-pine px-2 py-2.5 font-mono tnum text-[13px] text-white text-right">
               {money(totals.total, currency)}
             </td>
           </tr>
@@ -228,12 +224,12 @@ export function InvoiceDocument({ invoice, settings, lang, t }: InvoiceDocumentP
         <p className="font-display text-[9px] font-bold uppercase tracking-[0.14em] text-pine">
           {t.amountInWords}
         </p>
-        <p className="mt-1 text-[13px] font-semibold leading-relaxed">« {spelled} »</p>
+        <p className="mt-1 text-[13px] font-semibold leading-relaxed">Â« {spelled} Â»</p>
       </div>
 
       {/* ---------------- Signature ---------------- */}
       <div className="avoid-break mt-6 flex justify-end">
-        <p className="font-display text-xs font-bold text-pine ltr:text-right rtl:text-left">{t.signature}</p>
+        <p className="font-display text-xs font-bold text-pine text-right">{t.signature}</p>
       </div>
     </article>
   );
