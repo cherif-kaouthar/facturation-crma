@@ -25,7 +25,7 @@ jobs:
         run: npm ci
 
       - name: Build and package installer
-        run: npm run electron:build
+        run: npm run electron:build -- --publish never
 
       - name: Publish installer to GitHub Release
         uses: softprops/action-gh-release@v2
