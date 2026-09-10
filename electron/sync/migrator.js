@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dns from 'node:dns';
 import pg from 'pg';
+import { log } from './log.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const MIGRATIONS_DIR = path.resolve(__dirname, '..', '..', 'migrations');
@@ -74,10 +75,16 @@ async function tryConnect(connection, password) {
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
     statement_timeout: 120000,
   });
+  const started = Date.now();
+  log.info('connect', `attempt ${connection.user}@${connection.host}:${connection.port}`);
   try {
     await client.connect();
+    const elapsed = Date.now() - started;
+    log.info('connect', `ok in ${elapsed}ms (${connection.user}@${connection.host})`);
     return { ok: true, client };
   } catch (error) {
+    const elapsed = Date.now() - started;
+    log.error('connect', `failed after ${elapsed}ms`, error);
     return { ok: false, error, code: error?.code };
   }
 }
@@ -98,6 +105,7 @@ function describeError(error) {
  * Returns { connection, method } where method is "direct" or "pooler".
  */
 export async function findWorkingConnection({ projectRef, password }) {
+  log.info('findconnection', `probing direct endpoint db.${projectRef}.supabase.co`);
   const direct = postgresConnectionInfo(projectRef);
   const directResult = await tryConnect(direct, password);
   if (directResult.ok) {
@@ -110,7 +118,12 @@ export async function findWorkingConnection({ projectRef, password }) {
   for (const region of SUPABASE_REGIONS) {
     const connection = poolerConnectionInfo(projectRef, region);
     // eslint-disable-next-line no-await-in-loop
-    if (await lookup(connection.host)) candidates.push({ region, connection });
+    const resolves = await lookup(connection.host);
+    log.info(
+      'findconnection',
+      `dns ${resolves ? 'resolves' : 'NO DNS'} aws-0-${region}.pooler.supabase.com`
+    );
+    if (resolves) candidates.push({ region, connection });
   }
 
   let sawPasswordFailure = false;
@@ -124,6 +137,10 @@ export async function findWorkingConnection({ projectRef, password }) {
   }
 
   const directError = describeError(directResult.error);
+  log.warn(
+    'findconnection',
+    `direct=${directError} poolerCandidates=${candidates.length} badPasswordOnPooler=${sawPasswordFailure}`
+  );
   const reasons = [];
   if (directError === 'network') {
     reasons.push(
@@ -158,15 +175,18 @@ export async function resolveConnection(creds, password) {
   const projectRef = new URL(creds.projectUrl).hostname.split('.')[0];
   const stored = creds?.connection;
   if (stored?.method === 'direct') {
+    log.info('resolveconnection', `reusing stored direct endpoint (${projectRef})`);
     return { connection: postgresConnectionInfo(projectRef), method: 'direct', region: null };
   }
   if (stored?.method === 'pooler' && stored.region) {
+    log.info('resolveconnection', `reusing stored pooler region ${stored.region} (${projectRef})`);
     return {
       connection: poolerConnectionInfo(projectRef, stored.region),
       method: 'pooler',
       region: stored.region,
     };
   }
+  log.info('resolveconnection', `no stored connection — probing (${projectRef})`);
   const found = await findWorkingConnection({ projectRef, password });
   if (found.client) {
     try { await found.client.end(); } catch { /* best effort */ }
@@ -181,6 +201,7 @@ export async function resolveConnection(creds, password) {
  */
 export async function runMigrations(connection, password) {
   const client = new pg.Client({ ...connection, password, statement_timeout: 120000 });
+  log.info('migrate', `connecting to apply migrations (${connection.user}@${connection.host})`);
   await client.connect();
   try {
     await client.query(
@@ -193,6 +214,7 @@ export async function runMigrations(connection, password) {
       'select version from public.schema_migrations order by version'
     );
     const applied = new Set(appliedResult.rows.map((row) => row.version));
+    log.info('migrate', `already applied on server: [${[...applied].sort((a, b) => a - b).join(', ') || 'none'}]`);
 
     const newlyApplied = [];
     for (const file of listMigrationFiles()) {
@@ -200,6 +222,7 @@ export async function runMigrations(connection, password) {
       if (!Number.isInteger(version) || applied.has(version)) continue;
 
       const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+      log.info('migrate', `applying ${file} (version ${version})`);
       await client.query('BEGIN');
       try {
         await client.query(sql);
@@ -211,12 +234,18 @@ export async function runMigrations(connection, password) {
         newlyApplied.push({ version, file });
       } catch (error) {
         await client.query('ROLLBACK');
+        log.error('migrate', `migration ${file} failed`, error);
         throw new Error(
           `La migration ${file} a échoué. Le schéma n’a pas été modifié : ${error?.message ?? error}`
         );
       }
     }
 
+    if (newlyApplied.length > 0) {
+      log.info('migrate', `applied ${newlyApplied.map((m) => m.file).join(', ')}`);
+    } else {
+      log.info('migrate', 'no pending migrations');
+    }
     return { appliedVersions: [...applied].sort((a, b) => a - b), newlyApplied };
   } finally {
     await client.end();

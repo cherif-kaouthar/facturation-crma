@@ -11,6 +11,7 @@
  * better-sqlite3 later is a drop-in speed-up with no code changes.
  */
 
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -130,6 +131,15 @@ class Sqlite {
 }
 
 export function openDatabase(file) {
+  // node-sqlite3-wasm marks a live write lock with `<db>.lock`. A crash or
+  // hard kill leaves that directory behind, which would brick every later
+  // open with "database is locked". This app is single-instance, so a
+  // leftover lock is always stale recycle from a dead process — clear it.
+  try {
+    fs.rmSync(`${file}.lock`, { recursive: true, force: true });
+  } catch {
+    /* best effort */
+  }
   const db = new Sqlite(file);
   const shutdown = () => db.close();
   process.once('exit', shutdown);

@@ -214,6 +214,10 @@ export interface SyncSetupPayload {
   projectUrl: string;
   publishableKey: string;
   databasePassword: string;
+  /** Optional Supabase "Session pooler" connection string (Connect → Session
+   *  pooler). When present, it supplies host/port/user/db/password/region and
+   *  skips the automatic region probing. */
+  connectionUri?: string;
 }
 
 export interface SyncResult {

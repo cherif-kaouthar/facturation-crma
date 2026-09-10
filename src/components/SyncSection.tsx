@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  AlertTriangle, CheckCircle2, Cloud, CloudOff, Eye, EyeOff, Info, Link2, RefreshCw,
+  AlertTriangle, CheckCircle2, ChevronDown, Cloud, CloudOff, Eye, EyeOff, Info, Link2, RefreshCw,
   Unplug, XCircle,
 } from 'lucide-react';
 import type { Dictionary } from '../lib/i18n';
@@ -38,10 +38,16 @@ export function SyncSection({ t, notify }: SyncSectionProps) {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [confirmingForget, setConfirmingForget] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [savingScopes, setSavingScopes] = useState(false);
-  const [form, setForm] = useState({ projectUrl: '', publishableKey: '', databasePassword: '' });
+  const [form, setForm] = useState({
+    projectUrl: '',
+    publishableKey: '',
+    databasePassword: '',
+    connectionUri: '',
+  });
 
   const refresh = useCallback(async () => {
     if (!sync) {
@@ -65,6 +71,38 @@ export function SyncSection({ t, notify }: SyncSectionProps) {
 
   const patch = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setForm((previous) => ({ ...previous, [key]: event.target.value }));
+
+  /**
+   * Pasting the "Session pooler" string already contains the project ref and
+   * the DB password: extract them so the user only has to add the publishable
+   * key. The main process re-parses the URI authoritatively on submit.
+   */
+  const patchConnectionUri = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setForm((previous) => ({ ...previous, connectionUri: value }));
+    try {
+      const url = new URL(value);
+      if (url.hostname.endsWith('.pooler.supabase.com')) {
+        const ref = (url.username || '').match(/^postgres\.([a-z0-9]+)$/i)?.[1];
+        if (ref) {
+          setForm((previous) => ({
+            ...previous,
+            connectionUri: value,
+            projectUrl: `https://${ref.toLowerCase()}.supabase.co`,
+          }));
+        }
+        if (url.password) {
+          setForm((previous) => ({
+            ...previous,
+            connectionUri: value,
+            databasePassword: decodeURIComponent(url.password),
+          }));
+        }
+      }
+    } catch {
+      /* not a parseable URL yet — keep typing */
+    }
+  };
 
   const handleToggle = async (enabled: boolean) => {
     if (!sync) return;
@@ -97,7 +135,7 @@ export function SyncSection({ t, notify }: SyncSectionProps) {
       const result = await sync.setup(form);
       if (result.ok) {
         setModalOpen(false);
-        setForm({ projectUrl: '', publishableKey: '', databasePassword: '' });
+        setForm({ projectUrl: '', publishableKey: '', databasePassword: '', connectionUri: '' });
         setStatus(await sync.status());
         notify(t.syncConfigured);
       } else {
@@ -402,52 +440,95 @@ export function SyncSection({ t, notify }: SyncSectionProps) {
         <div className="space-y-4">
           <p className="text-sm leading-relaxed text-slate">{t.syncSetupHint}</p>
 
-          <Field label={t.syncProjectUrl} htmlFor="sync-project-url">
+          <Field
+            label={t.syncConnectionUri}
+            hint={t.syncConnectionUriHint}
+            htmlFor="sync-connection-uri"
+          >
             <input
-              id="sync-project-url"
+              id="sync-connection-uri"
               type="text"
-              value={form.projectUrl}
-              onChange={patch('projectUrl')}
-              placeholder="https://xxxxxxxx.supabase.co"
+              value={form.connectionUri}
+              onChange={patchConnectionUri}
+              placeholder={t.syncConnectionUriPlaceholder}
               autoComplete="off"
               spellCheck={false}
-              className={inputClass}
+              className={cx(inputClass, 'font-mono text-xs')}
             />
           </Field>
 
-          <Field label={t.syncPublishableKey} htmlFor="sync-publishable-key">
-            <input
-              id="sync-publishable-key"
-              type="text"
-              value={form.publishableKey}
-              onChange={patch('publishableKey')}
-              placeholder="sb_publishable_…"
-              autoComplete="off"
-              spellCheck={false}
-              className={cx(inputClass, 'font-mono')}
-            />
-          </Field>
-
-          <Field label={t.syncDbPassword} hint={t.syncDbPasswordHint} htmlFor="sync-db-password">
-            <div className="relative">
-              <input
-                id="sync-db-password"
-                type={showPassword ? 'text' : 'password'}
-                value={form.databasePassword}
-                onChange={patch('databasePassword')}
-                autoComplete="new-password"
-                className={cx(inputClass, 'pr-10')}
+          {/* The three technical identifiers are the fallback path for users
+              who only have the URL/key/password handy. Kept out of the way:
+              the connection link above is the normal, recommended flow. */}
+          <div className="overflow-hidden rounded-md border border-rule">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((open) => !open)}
+              aria-expanded={showAdvanced}
+              className="flex w-full items-center justify-between gap-3 bg-desk/40 px-3 py-2.5 text-start"
+            >
+              <span className="text-xs font-semibold text-slate">{t.syncAdvanced}</span>
+              <ChevronDown
+                className={cx('h-4 w-4 shrink-0 text-mute transition-transform', showAdvanced && 'rotate-180')}
+                aria-hidden
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((visible) => !visible)}
-                aria-label={showPassword ? t.syncHidePassword : t.syncShowPassword}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-mute transition-colors hover:text-ink"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </Field>
+            </button>
+
+            {showAdvanced && (
+              <div className="space-y-4 border-t border-rule bg-paper p-4">
+                <Field label={t.syncProjectUrl} hint={t.syncProjectUrlOptional} htmlFor="sync-project-url">
+                  <input
+                    id="sync-project-url"
+                    type="text"
+                    value={form.projectUrl}
+                    onChange={patch('projectUrl')}
+                    placeholder="https://xxxxxxxx.supabase.co"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field
+                  label={t.syncPublishableKey}
+                  hint={t.syncPublishableKeyOptional}
+                  htmlFor="sync-publishable-key"
+                >
+                  <input
+                    id="sync-publishable-key"
+                    type="text"
+                    value={form.publishableKey}
+                    onChange={patch('publishableKey')}
+                    placeholder="sb_publishable_… (facultatif)"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={cx(inputClass, 'font-mono')}
+                  />
+                </Field>
+
+                <Field label={t.syncDbPassword} hint={t.syncDbPasswordHint} htmlFor="sync-db-password">
+                  <div className="relative">
+                    <input
+                      id="sync-db-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.databasePassword}
+                      onChange={patch('databasePassword')}
+                      autoComplete="new-password"
+                      className={cx(inputClass, 'pr-10')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      aria-label={showPassword ? t.syncHidePassword : t.syncShowPassword}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-mute transition-colors hover:text-ink"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </Field>
+              </div>
+            )}
+          </div>
 
           {errors.length > 0 && (
             <div className="flex items-start gap-3 rounded-md border border-seal/30 bg-seal-tint/40 p-3 text-sm text-seal">

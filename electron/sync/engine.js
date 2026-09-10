@@ -48,6 +48,7 @@ import pg from 'pg';
 import { runMigrations, resolveConnection } from './migrator.js';
 import { loadCredentials, decryptSecret, saveCredentials } from './credentials.js';
 import { localChanges } from '../../server/changes.js';
+import { log } from './log.js';
 import {
   EPOCH,
   dateOnly,
@@ -1094,7 +1095,9 @@ async function connect(creds, password) {
 
   await disconnect();
 
+  log.info('connect', `resolving connection for ${creds.projectUrl}`);
   const { connection, method, region } = await resolveConnection(creds, password);
+  log.info('connect', `resolved via ${method}${region ? ` (${region})` : ''}`);
   if (creds.connection?.method !== method || creds.connection?.region !== region) {
     await saveCredentials({
       projectUrl: creds.projectUrl,
@@ -1119,6 +1122,7 @@ async function connect(creds, password) {
     }
   });
   await client.connect();
+  log.info('connect', `connected (${connection.user}@${connection.host})`);
   pgClient = client;
   pgClientKey = key;
   return pgClient;
@@ -1200,7 +1204,7 @@ export async function runSyncCycle() {
 
 async function runSyncCycleInner() {
   const creds = loadCredentials();
-  if (!creds?.projectUrl || !creds?.publishableKey) {
+  if (!creds?.projectUrl) {
     return { ok: false, error: 'Configuration du projet Supabase manquante.' };
   }
 
@@ -1262,6 +1266,7 @@ async function runSyncCycleInner() {
     return { ok: messages.length === 0, pulled, pushed, issues: cycleIssues, error: lastError };
   } catch (error) {
     lastError = error?.message ?? String(error);
+    log.error('cycle', `cycle failed: ${lastError}`, error);
     // A broken connection must not be reused.
     await disconnect();
     return { ok: false, error: lastError, issues: cycleIssues };
