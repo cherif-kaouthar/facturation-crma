@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, FileText, Plus, Settings as SettingsIcon, Users } from 'lucide-react';
+import { BarChart3, FileText, LogOut, Plus, Settings as SettingsIcon, Users } from 'lucide-react';
 import type { Settings, Unit } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { BrandLogo } from './Brand';
@@ -19,6 +19,7 @@ interface AppHeaderProps {
   onOpenSettings: () => void;
   onAddUnit: () => void;
   onGoHome: () => void;
+  onLogout: () => void;
 }
 
 export function AppHeader({
@@ -35,6 +36,7 @@ export function AppHeader({
   onOpenSettings,
   onAddUnit,
   onGoHome,
+  onLogout,
 }: AppHeaderProps) {
   const visibleUnits = units.filter((unit) => !unit.archived || unit.id === selectedUnitId);
   const selected = units.find((unit) => unit.id === selectedUnitId);
@@ -115,6 +117,17 @@ export function AppHeader({
             >
               <SettingsIcon className="h-3.5 w-3.5" aria-hidden />
               <span className="hidden sm:inline">{t.settings}</span>
+            </button>
+
+            <div className="mx-1 h-5 w-px bg-white/20" />
+
+            <button
+              type="button"
+              onClick={onLogout}
+              title={t.authLogout}
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:bg-black/20 hover:text-white"
+            >
+              <LogOut className="h-3.5 w-3.5" aria-hidden />
             </button>
           </div>
         </div>

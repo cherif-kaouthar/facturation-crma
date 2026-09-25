@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { registerSyncIpc } from './sync/ipc.js';
 import { startSyncScheduler, runSyncCycle, syncEvents } from './sync/engine.js';
 import { loadCredentials } from './sync/credentials.js';
-import { autoUpdater } from 'electron-updater';
+import pkg from 'electron-updater';
+const { autoUpdater } = pkg;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;

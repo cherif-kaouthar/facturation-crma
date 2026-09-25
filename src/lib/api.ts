@@ -1,5 +1,16 @@
 import type { Client, Invoice, InvoiceDraft, NextNumber, Settings, Stats, Unit, YearlyStats } from '../types';
 
+const TOKEN_KEY = 'lfb.authToken';
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setStoredToken(token: string | null) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -10,14 +21,25 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {};
+  if (init?.body && !(init.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
-      headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
       ...init,
+      headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) },
     });
   } catch {
-    throw new ApiError('Impossible de joindre le serveur. Vérifiez qu’il est démarré.', 0);
+    throw new ApiError('Impossible de joindre le serveur.', 0);
+  }
+
+  if (response.status === 401) {
+    setStoredToken(null);
+    window.dispatchEvent(new Event('auth:expired'));
+    throw new ApiError('Session expirée. Reconnectez-vous.', 401);
   }
 
   if (response.status === 204) return undefined as T;
@@ -45,6 +67,30 @@ const query = (params: Record<string, string | number | undefined | null>) => {
   }
   const string = search.toString();
   return string ? `?${string}` : '';
+};
+
+export interface AuthStatus {
+  needsSetup: boolean;
+}
+
+export interface AuthResult {
+  ok: boolean;
+  token: string;
+  username: string;
+  recoveryKey?: string;
+}
+
+export const authApi = {
+  status: () => request<AuthStatus>('/auth/status'),
+  setup: (username: string, password: string) =>
+    request<AuthResult>('/auth/setup', { method: 'POST', body: body({ username, password }) }),
+  login: (username: string, password: string) =>
+    request<AuthResult>('/auth/login', { method: 'POST', body: body({ username, password }) }),
+  logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<AuthResult>('/auth/change-password', { method: 'POST', body: body({ currentPassword, newPassword }) }),
+  resetPassword: (username: string, recoveryKey: string, newPassword: string) =>
+    request<AuthResult>('/auth/reset-password', { method: 'POST', body: body({ username, recoveryKey, newPassword }) }),
 };
 
 export const api = {
@@ -97,11 +143,15 @@ export const api = {
     `/api/export.csv${query(params)}`,
 
   downloadDatabaseBackup: async () => {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     let response: Response;
     try {
-      response = await fetch('/api/settings/database/backup', { method: 'POST' });
+      response = await fetch('/api/settings/database/backup', { method: 'POST', headers });
     } catch {
-      throw new ApiError('Impossible de joindre le serveur. Vérifiez qu’il est démarré.', 0);
+      throw new ApiError('Impossible de joindre le serveur.', 0);
     }
 
     if (!response.ok) {
@@ -128,6 +178,10 @@ export const api = {
   },
 
   restoreDatabaseBackup: async (file: File) => {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     const formData = new FormData();
     formData.append('file', file);
 
@@ -136,9 +190,10 @@ export const api = {
       response = await fetch('/api/settings/database/restore', {
         method: 'POST',
         body: formData,
+        headers,
       });
     } catch {
-      throw new ApiError('Impossible de joindre le serveur. Vérifiez qu’il est démarré.', 0);
+      throw new ApiError('Impossible de joindre le serveur.', 0);
     }
 
     const text = await response.text();

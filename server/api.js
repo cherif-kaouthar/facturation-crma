@@ -8,6 +8,7 @@ import { openDatabase } from './sqlite.js';
 import * as repo from './repo.js';
 import { ApiError } from './repo.js';
 import { notifyLocalChange } from './changes.js';
+import { createAuthApi, authMiddleware } from './auth.js';
 
 const SQLITE_HEADER = Buffer.from('SQLite format 3\0', 'utf8');
 
@@ -76,8 +77,12 @@ const id = (req) => {
 export function createApi() {
   const api = express.Router();
 
+  api.use('/auth', createAuthApi());
+
   // Logos arrive as data: URLs, so the JSON body can legitimately be large.
   api.use(express.json({ limit: '6mb' }));
+
+  api.use(authMiddleware);
 
   // Tell the sync engine as soon as this device writes something, so the push
   // happens within a second instead of waiting for the next poll.

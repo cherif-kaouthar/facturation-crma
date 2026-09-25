@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle, ArchiveRestore, Archive, Building2, Database, Download, ImageUp, Plus, RotateCcw, Save, Trash2, Upload,
+  AlertTriangle, ArchiveRestore, Archive, Building2, Database, Download, ImageUp, KeyRound, Plus, RotateCcw, Save, Trash2, Upload,
 } from 'lucide-react';
 import type { NextNumber, Settings, Unit } from '../types';
 import type { Dictionary } from '../lib/i18n';
 import { money } from '../lib/format';
-import { api } from '../lib/api';
+import { api, authApi } from '../lib/api';
 import { BrandLogo } from './Brand';
 import { SyncSection } from './SyncSection';
 import { Button, Field, Modal, Panel, SectionTitle, cx, inputClass } from './ui';
@@ -285,6 +285,138 @@ function ObsPresetsEditor({
 }
 
 /* ------------------------------------------------------------------ */
+/* Change password                                                     */
+/* ------------------------------------------------------------------ */
+
+function ChangePasswordSection({
+  t,
+  notify,
+}: {
+  t: Dictionary;
+  notify: SettingsPageProps['notify'];
+}) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      notify(t.authPasswordMismatch, 'error');
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await authApi.changePassword(currentPassword, newPassword);
+      localStorage.setItem('lfb.authToken', result.token);
+      setRecoveryKey(result.recoveryKey!);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      notify(t.authPasswordChanged, 'success');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erreur.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadKey = () => {
+    const content = [
+      `Facturation \u2014 ${t.authRecoveryKeyTitle}`,
+      `${'─'.repeat(60)}`,
+      ``,
+      recoveryKey,
+      ``,
+      `${'─'.repeat(60)}`,
+      t.authRecoveryKeyWarning,
+    ].join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'facturation-cle-de-recuperation.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Panel className="p-5">
+      <SectionTitle>{t.authChangePassword}</SectionTitle>
+
+      {recoveryKey ? (
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed text-slate">{t.authRecoveryKeyHint}</p>
+          <div className="rounded-md border border-pine-mid/30 bg-pine-tint p-4">
+            <code className="block break-all font-mono text-xs leading-relaxed text-ink">
+              {recoveryKey}
+            </code>
+          </div>
+          <p className="rounded-md border border-seal/30 bg-seal-tint px-3 py-2 text-sm font-semibold text-seal">
+            {t.authRecoveryKeyWarning}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="secondary" icon={Download} onClick={downloadKey}>
+              {t.authDownloadKey}
+            </Button>
+            <Button variant="primary" onClick={() => setRecoveryKey('')}>
+              {t.authKeySaved}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label={t.authCurrentPassword} htmlFor="cur-pass">
+              <input
+                id="cur-pass"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className={inputClass}
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+            <Field label={t.authNewPassword} htmlFor="new-pass">
+              <input
+                id="new-pass"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className={inputClass}
+                autoComplete="new-password"
+                required
+                minLength={6}
+              />
+            </Field>
+            <Field label={t.authConfirmNewPassword} htmlFor="confirm-pass">
+              <input
+                id="confirm-pass"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={inputClass}
+                autoComplete="new-password"
+                required
+                minLength={6}
+              />
+            </Field>
+          </div>
+          <Button type="submit" variant="primary" icon={KeyRound} busy={busy}>
+            {busy ? t.authChangingPassword : t.authChangePassword}
+          </Button>
+        </form>
+      )}
+    </Panel>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -344,6 +476,8 @@ export function SettingsPage({
       </header>
 
       <SyncSection t={t} notify={notify} />
+
+      <ChangePasswordSection t={t} notify={notify} />
 
       <LogoSection settings={draft} t={t} onChange={setLogo} notify={notify} />
 

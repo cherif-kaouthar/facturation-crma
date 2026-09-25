@@ -25,7 +25,7 @@ type View =
 
 const SCOPE_KEY = 'lfb.unitScope';
 
-export default function App() {
+export default function App({ onLogout }: { onLogout: () => void }) {
   /* ---------------- Core data ---------------- */
   const [settings, setSettings] = useState<Settings | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -545,6 +545,7 @@ export default function App() {
         onOpenSettings={() => setView({ name: 'settings' })}
         onAddUnit={() => setUnitModal({ open: true, unit: null })}
         onGoHome={() => setView({ name: 'ledger' })}
+        onLogout={onLogout}
       />
 
       <main className="flex-1">
