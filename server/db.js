@@ -136,10 +136,10 @@ export class DatabaseManager {
       const walFile = `${this.#dbFile}-wal`;
       const shmFile = `${this.#dbFile}-shm`;
       if (fs.existsSync(walFile)) {
-        try { fs.unlinkSync(walFile); } catch {}
+        try { fs.unlinkSync(walFile); } catch { /* best effort */ }
       }
       if (fs.existsSync(shmFile)) {
-        try { fs.unlinkSync(shmFile); } catch {}
+        try { fs.unlinkSync(shmFile); } catch { /* best effort */ }
       }
 
       // 5. Reopen connection

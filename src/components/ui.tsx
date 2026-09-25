@@ -292,7 +292,6 @@ export function Combobox({
   ariaLabel?: string;
   className?: string;
 }) {
-  const listId = React.useId();
   const [inputValue, setInputValue] = useState(value);
   const [showCustom, setShowCustom] = useState(false);
 

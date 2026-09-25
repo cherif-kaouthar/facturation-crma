@@ -58,7 +58,6 @@ export function registerSyncIpc() {
       projectUrl,
       publishableKey,
       databasePassword,
-      connectionUri,
       parsedUri,
     } = validateSetup(payload);
     if (errors.length > 0) {

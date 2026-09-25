@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  AlertTriangle, CheckCircle2, ChevronDown, Cloud, CloudOff, Eye, EyeOff, Info, Link2, RefreshCw,
+  CheckCircle2, ChevronDown, Cloud, CloudOff, Eye, EyeOff, Info, Link2, RefreshCw,
   Unplug, XCircle,
 } from 'lucide-react';
 import type { Dictionary } from '../lib/i18n';

@@ -597,8 +597,8 @@ function DatabaseBackupRestoreSection({
     try {
       await api.downloadDatabaseBackup();
       notify(t.backupSuccess, 'success');
-    } catch (err: any) {
-      notify(err?.message || 'Échec de la création de la sauvegarde.', 'error');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Échec de la création de la sauvegarde.', 'error');
     } finally {
       setBackingUp(false);
     }
@@ -633,8 +633,8 @@ function DatabaseBackupRestoreSection({
       setTimeout(() => {
         window.location.reload();
       }, 1200);
-    } catch (err: any) {
-      notify(err?.message || 'Échec de la restauration de la base de données.', 'error');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Échec de la restauration de la base de données.', 'error');
       setRestoring(false);
     }
   };

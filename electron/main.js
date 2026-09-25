@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { registerSyncIpc } from './sync/ipc.js';
 import { startSyncScheduler, runSyncCycle, syncEvents } from './sync/engine.js';
 import { loadCredentials } from './sync/credentials.js';
+import { autoUpdater } from 'electron-updater';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
@@ -25,6 +26,7 @@ process.env.LFB_DATA_DIR = dataDir;
 /* ------------------------------------------------------------------ */
 let mainWindow = null;
 let httpServer = null;
+let updateCheckInterval = null;
 
 /* ------------------------------------------------------------------ */
 /*  Express server (production only)                                    */
@@ -148,7 +150,7 @@ async function createWindow() {
       ? url.startsWith('http://localhost:3000')
       : url.startsWith('http://127.0.0.1');
     if (!allowed) {
-      try { shell.openExternal(url); } catch {}
+      try { shell.openExternal(url); } catch { /* best effort */ }
     }
     return { action: allowed ? 'allow' : 'deny' };
   });
@@ -175,6 +177,54 @@ async function createWindow() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Auto-update (production only)                                      */
+/* ------------------------------------------------------------------ */
+function setupAutoUpdater() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Auto-updater: checking for update…');
+  });
+  autoUpdater.on('update-available', (info) => {
+    console.log(`Auto-updater: update available — v${info.version}`);
+  });
+  autoUpdater.on('update-not-available', () => {
+    console.log('Auto-updater: no update available.');
+  });
+  autoUpdater.on('download-progress', (progress) => {
+    console.log(`Auto-updater: downloading ${Math.round(progress.percent)}%`);
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log(`Auto-updater: update downloaded — v${info.version}`);
+    dialog
+      .showMessageBox(mainWindow ?? BrowserWindow.getFocusedWindow(), {
+        type: 'info',
+        title: 'Mise à jour disponible',
+        message: `La version ${info.version} a été téléchargée. Voulez-vous redémarrer maintenant pour l'installer ?`,
+        buttons: ['Redémarrer', 'Plus tard'],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+      });
+  });
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err?.message ?? err);
+  });
+
+  autoUpdater.checkForUpdatesAndNotify();
+
+  updateCheckInterval = setInterval(
+    () => autoUpdater.checkForUpdatesAndNotify(),
+    4 * 60 * 60 * 1000,
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  App lifecycle                                                      */
 /* ------------------------------------------------------------------ */
 app.whenReady().then(() => {
@@ -191,10 +241,17 @@ app.whenReady().then(() => {
   startSyncScheduler();
   const creds = loadCredentials();
   if (creds?.enabled) runSyncCycle();
+
+  setupAutoUpdater();
+
   return createWindow();
 });
 
 app.on('window-all-closed', () => {
+  if (updateCheckInterval) {
+    clearInterval(updateCheckInterval);
+    updateCheckInterval = null;
+  }
   if (httpServer) {
     httpServer.close();
     httpServer = null;

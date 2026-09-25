@@ -79,7 +79,6 @@ export function InvoiceEditor({
   saving,
   onSave,
   onCancel,
-  onAddNewClient,
 }: InvoiceEditorProps) {
   const isEdit = invoice !== null;
   const [unitId, setUnitId] = useState<number>(invoice?.unitId ?? defaultUnitId);
@@ -214,7 +213,7 @@ export function InvoiceEditor({
       date,
       year: Number(date.slice(0, 4)),
       notes,
-      lines: lines.map(({ id, ...rest }) => rest),
+      lines: lines.map(({ id: _id, ...rest }) => rest),
     });
   };
 
@@ -232,7 +231,7 @@ export function InvoiceEditor({
     const s = raw.trim();
     if (!s) return '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+    const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
     if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
     return s;
   }

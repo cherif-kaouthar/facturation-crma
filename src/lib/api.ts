@@ -23,7 +23,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
-  let payload: any = null;
+  let payload: unknown;
   try {
     payload = text ? JSON.parse(text) : null;
   } catch {
@@ -31,7 +31,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    throw new ApiError(payload?.error ?? `Erreur ${response.status}.`, response.status);
+    const message = (payload as { error?: string } | null)?.error ?? `Erreur ${response.status}.`;
+    throw new ApiError(message, response.status);
   }
   return payload as T;
 }
@@ -141,7 +142,7 @@ export const api = {
     }
 
     const text = await response.text();
-    let payload: any = null;
+    let payload: unknown;
     try {
       payload = text ? JSON.parse(text) : null;
     } catch {
@@ -149,7 +150,8 @@ export const api = {
     }
 
     if (!response.ok) {
-      throw new ApiError(payload?.error || 'Échec de la restauration de la base de données.', response.status);
+      const message = (payload as { error?: string } | null)?.error || 'Échec de la restauration de la base de données.';
+      throw new ApiError(message, response.status);
     }
 
     return payload as { ok: boolean; message: string };

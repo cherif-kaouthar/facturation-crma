@@ -42,7 +42,7 @@ function validateSqliteFile(filePath) {
       throw new Error(`Quick check error: ${val}`);
     }
   } catch (err) {
-    throw new ApiError(400, 'Le fichier de sauvegarde est corrompu ou illisible par SQLite.');
+    throw new ApiError(400, 'Le fichier de sauvegarde est corrompu ou illisible par SQLite.', String(err?.message ?? err));
   }
 }
 
@@ -144,7 +144,7 @@ export function createApi() {
 
       if (!fs.existsSync(tempPath) || fs.statSync(tempPath).size === 0) {
         if (fs.existsSync(tempPath)) {
-          try { fs.unlinkSync(tempPath); } catch {}
+          try { fs.unlinkSync(tempPath); } catch { /* best effort */ }
         }
         throw new ApiError(500, 'Échec de la création du fichier de sauvegarde.');
       }
@@ -154,7 +154,7 @@ export function createApi() {
 
       res.download(tempPath, filename, (err) => {
         if (fs.existsSync(tempPath)) {
-          try { fs.unlinkSync(tempPath); } catch {}
+          try { fs.unlinkSync(tempPath); } catch { /* best effort */ }
         }
         if (err && !res.headersSent) {
           console.error('[backup download error]', err);
@@ -189,7 +189,7 @@ export function createApi() {
         return { ok: true, message: 'La base de données a été restaurée avec succès.' };
       } finally {
         if (fs.existsSync(uploadPath)) {
-          try { fs.unlinkSync(uploadPath); } catch {}
+          try { fs.unlinkSync(uploadPath); } catch { /* best effort */ }
         }
       }
     })
@@ -232,7 +232,7 @@ export function createApi() {
   api.delete('/invoices/:id', handle((req) => repo.deleteInvoice(id(req))));
 
   /* Numbering ------------------------------------------------------ */
-  api.get('/numbering/next', handle((req) => repo.listNextNumbers()));
+  api.get('/numbering/next', handle(() => repo.listNextNumbers()));
   api.put('/numbering/:year', handle((req) =>
     repo.setNextSeq(req.params.year, req.body?.nextSeq)
   ));

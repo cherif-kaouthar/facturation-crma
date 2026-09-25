@@ -1,14 +1,14 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Connect, type Plugin } from 'vite';
 
 /**
  * Mounts the SQLite-backed API inside Vite itself, so `npm run dev` serves the
  * UI and its data from a single origin — no second process, no proxy config.
  */
 function sqliteApiPlugin(): Plugin {
-  const mount = async (server: { middlewares: any }) => {
+  const mount = async (server: { middlewares: Connect.Server }) => {
     const express = (await import('express')).default;
     const { createApi } = await import('./server/api.js');
     const app = express();

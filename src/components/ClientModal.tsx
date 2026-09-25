@@ -80,8 +80,8 @@ export function ClientModal({
         email: email.trim(),
         archived: client?.archived || false,
       });
-    } catch (err: any) {
-      setError(err?.message || 'Erreur lors de l’enregistrement.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l’enregistrement.');
     }
   };
 

@@ -117,7 +117,6 @@ export async function findWorkingConnection({ projectRef, password }) {
   const candidates = [];
   for (const region of SUPABASE_REGIONS) {
     const connection = poolerConnectionInfo(projectRef, region);
-    // eslint-disable-next-line no-await-in-loop
     const resolves = await lookup(connection.host);
     log.info(
       'findconnection',
@@ -128,7 +127,6 @@ export async function findWorkingConnection({ projectRef, password }) {
 
   let sawPasswordFailure = false;
   for (const { region, connection } of candidates) {
-    // eslint-disable-next-line no-await-in-loop
     const result = await tryConnect(connection, password);
     if (result.ok) {
       return { connection, method: 'pooler', region, client: result.client };
@@ -236,7 +234,8 @@ export async function runMigrations(connection, password) {
         await client.query('ROLLBACK');
         log.error('migrate', `migration ${file} failed`, error);
         throw new Error(
-          `La migration ${file} a échoué. Le schéma n’a pas été modifié : ${error?.message ?? error}`
+          `La migration ${file} a échoué. Le schéma n’a pas été modifié : ${error?.message ?? error}`,
+          { cause: error }
         );
       }
     }
