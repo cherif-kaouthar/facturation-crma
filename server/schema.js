@@ -133,6 +133,18 @@ export function applySchema(conn) {
     );
   `);
 
+  // users.username is UNIQUE but case-sensitive, which would let "Ali" and
+  // "ali" both exist as separate accounts that look identical when signing in.
+  // Enforce uniqueness on the lowercased name as well. Guarded: a database
+  // that already holds two such rows cannot gain the index and must still boot.
+  try {
+    conn.exec(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_nocase ON users (lower(username));'
+    );
+  } catch (err) {
+    console.error('Failed to ensure case-insensitive username uniqueness:', err);
+  }
+
   ensureColumn(conn, 'invoices', 'page_orientation', "TEXT NOT NULL DEFAULT 'portrait'");
   ensureColumn(conn, 'invoices', 'notes', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(conn, 'invoices', 'tva_rate', "REAL NOT NULL DEFAULT 0.19");

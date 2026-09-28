@@ -82,6 +82,8 @@ export interface AuthResult {
 
 export const authApi = {
   status: () => request<AuthStatus>('/auth/status'),
+  register: (username: string, password: string) =>
+    request<AuthResult>('/auth/register', { method: 'POST', body: body({ username, password }) }),
   setup: (username: string, password: string) =>
     request<AuthResult>('/auth/setup', { method: 'POST', body: body({ username, password }) }),
   login: (username: string, password: string) =>

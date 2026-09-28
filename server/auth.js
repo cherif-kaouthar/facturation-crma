@@ -67,6 +67,56 @@ export function hasUsers() {
   return row.cnt > 0;
 }
 
+/**
+ * SQLite's UNIQUE on users.username is case-sensitive, so "Ali" and "ali"
+ * would otherwise be two separate accounts that are indistinguishable on the
+ * login form. The schema adds a unique index on lower(username) to match.
+ */
+function findUserByUsername(username) {
+  return db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username);
+}
+
+function validateCredentials(username, password) {
+  if (!username || typeof username !== 'string' || username.trim().length < 2) {
+    throw new ApiError(400, "Le nom d'utilisateur doit contenir au moins 2 caractères.");
+  }
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    throw new ApiError(400, 'Le mot de passe doit contenir au moins 6 caractères.');
+  }
+  return { username: username.trim(), password };
+}
+
+/**
+ * Create one account and sign it straight in.
+ *
+ * Registration is open: any number of users may create their own account and
+ * there is no privileged first user. Every account has identical access to the
+ * same shared invoicing data — authentication gates the app, it does not scope
+ * rows per user.
+ */
+function createAccount(username, password) {
+  const { username: name, password: secret } = validateCredentials(username, password);
+
+  return db.transaction(() => {
+    if (findUserByUsername(name)) {
+      throw new ApiError(409, "Ce nom d'utilisateur est déjà utilisé.");
+    }
+
+    const recoveryKey = generateRecoveryKey();
+    const now = new Date().toISOString();
+
+    db.prepare(
+      'INSERT INTO users (username, password_hash, recovery_key_hash, created_at) VALUES (?, ?, ?, ?)'
+    ).run(name, hashPassword(secret), hashPassword(recoveryKey), now);
+
+    const user = findUserByUsername(name);
+    const token = generateToken();
+    storeToken(token, user.id);
+
+    return { ok: true, token, username: user.username, recoveryKey };
+  })();
+}
+
 export function authMiddleware(req, res, next) {
   if (!hasUsers()) return next();
 
@@ -109,38 +159,17 @@ export function createAuthApi() {
     needsSetup: !hasUsers(),
   })));
 
+  // Open self-service registration: any number of accounts, no fixed user.
+  router.post('/register', handle((req) => {
+    const { username, password } = req.body ?? {};
+    return createAccount(username, password);
+  }));
+
+  // First-run entry point. Kept for the initial launch and for older clients;
+  // it now behaves exactly like /register since there is no single owner.
   router.post('/setup', handle((req) => {
-    if (hasUsers()) {
-      throw new ApiError(400, 'Un compte existe déjà.');
-    }
-
-    const { username, password } = req.body;
-    if (!username || typeof username !== 'string' || username.trim().length < 2) {
-      throw new ApiError(400, "Le nom d'utilisateur doit contenir au moins 2 caractères.");
-    }
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      throw new ApiError(400, 'Le mot de passe doit contenir au moins 6 caractères.');
-    }
-
-    const recoveryKey = generateRecoveryKey();
-    const passwordHash = hashPassword(password);
-    const recoveryKeyHash = hashPassword(recoveryKey);
-    const now = new Date().toISOString();
-
-    db.prepare(
-      'INSERT INTO users (username, password_hash, recovery_key_hash, created_at) VALUES (?, ?, ?, ?)'
-    ).run(username.trim(), passwordHash, recoveryKeyHash, now);
-
-    const user = db.prepare('SELECT id FROM users WHERE username = ?').get(username.trim());
-    const token = generateToken();
-    storeToken(token, user.id);
-
-    return {
-      ok: true,
-      token,
-      username: username.trim(),
-      recoveryKey,
-    };
+    const { username, password } = req.body ?? {};
+    return createAccount(username, password);
   }));
 
   router.post('/login', handle((req) => {
@@ -149,7 +178,7 @@ export function createAuthApi() {
       throw new ApiError(400, "Nom d'utilisateur et mot de passe requis.");
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim());
+    const user = findUserByUsername(username.trim());
     if (!user || !verifyPassword(password, user.password_hash)) {
       throw new ApiError(401, 'Identifiants incorrects.');
     }
@@ -216,7 +245,7 @@ export function createAuthApi() {
       throw new ApiError(400, 'Le nouveau mot de passe doit contenir au moins 6 caractères.');
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim());
+    const user = findUserByUsername(username.trim());
     if (!user || !verifyPassword(recoveryKey, user.recovery_key_hash)) {
       throw new ApiError(401, 'Clé de récupération invalide.');
     }
