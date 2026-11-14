@@ -1,6 +1,6 @@
 # Facturation
 
-Application de gestion de factures d'assurance pour LAITERIE FROMAGERIE LFB.
+Application de gestion de factures d'assurance.
 
 Desktop : application Electron (Windows, macOS, Linux). Web : front-end React/Vite servi par un serveur Express avec base de données SQLite.
 
